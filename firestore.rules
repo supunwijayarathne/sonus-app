@@ -1,0 +1,89 @@
+rules_version = '2';
+
+// Sonus security rules. Anything not allowed below is denied.
+//
+// CLAUDE.md privacy rules:
+// - a user sees only their own data,
+// - a therapist sees only users assigned to them (users.therapistId),
+// - nobody can change their own role.
+//
+// attempts / reviews / exercises / assignments are added in a later step.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function userData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    // ---------------------------------------------------------------- users
+    match /users/{uid} {
+      // Read: yourself, your assigned users (therapist), your therapist (user).
+      allow get: if isSelf(uid)
+        || (signedIn() && resource.data.get('therapistId', null) == request.auth.uid)
+        || (signedIn() && userData(request.auth.uid).get('therapistId', null) == uid);
+
+      // List (queries): only "my assigned users" — every result must point to me.
+      allow list: if signedIn()
+        && resource.data.get('therapistId', null) == request.auth.uid;
+
+      // Create your own profile once, at sign-up. No therapistId yet.
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(
+             ['role', 'name', 'email', 'code', 'inviteCode', 'createdAt'])
+        && request.resource.data.role in ['user', 'therapist']
+        && request.resource.data.name is string
+        && request.resource.data.email == request.auth.token.email
+        && (request.resource.data.role == 'therapist'
+            || !('inviteCode' in request.resource.data));
+
+      // Update: change your name, or (adult users) link to a therapist using a
+      // real invite code. role, email, code and inviteCode never change.
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'therapistId', 'linkedCode'])
+        && (!request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['therapistId', 'linkedCode'])
+            || (resource.data.role == 'user'
+                && validInvite(request.resource.data.linkedCode,
+                               request.resource.data.therapistId)));
+
+      allow delete: if false;
+    }
+
+    // The invite code must exist and belong to that therapist.
+    function validInvite(code, therapistId) {
+      return code is string
+        && exists(/databases/$(database)/documents/inviteCodes/$(code))
+        && get(/databases/$(database)/documents/inviteCodes/$(code))
+             .data.therapistId == therapistId;
+    }
+
+    // ---------------------------------------------------------- inviteCodes
+    // inviteCodes/{code} -> { therapistId }
+    match /inviteCodes/{code} {
+      // Look up one code you were given; nobody can list all codes.
+      allow get: if signedIn();
+      allow list: if false;
+
+      // Created by a therapist at sign-up, in the same batch as their profile
+      // (getAfter sees the profile written in that batch). Never changed:
+      // if the code already exists this counts as an update and is denied.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['therapistId'])
+        && request.resource.data.therapistId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.role == 'therapist'
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.inviteCode == code;
+      allow update, delete: if false;
+    }
+  }
+}

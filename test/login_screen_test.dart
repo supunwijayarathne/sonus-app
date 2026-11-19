@@ -31,7 +31,7 @@ void main() {
   testWidgets('empty form shows errors and does not sign in', (tester) async {
     var called = false;
     await tester.pumpWidget(
-      _app(LoginScreen(onSignIn: (_, _, _) => called = true)),
+      _app(LoginScreen(onSignIn: (_, _, _) async => called = true)),
     );
 
     await tester.ensureVisible(find.text('Sign in'));
@@ -49,7 +49,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         LoginScreen(
-          onSignIn: (r, e, _) {
+          onSignIn: (r, e, _) async {
             role = r;
             email = e;
           },

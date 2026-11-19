@@ -2,20 +2,23 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../data/mock_data.dart';
 import '../../models/patient_record.dart';
+import '../../models/user_profile.dart';
 import '../../theme/app_colors.dart';
 import '../profile/profile_screen.dart';
 import 'overview_screen.dart';
 import 'patient_profile_screen.dart';
 import 'reviews_screen.dart';
 import 'session_review_screen.dart';
+import 'invite_code_sheet.dart';
 import 'users_screen.dart';
 
 /// Speech therapist's main screen with the bottom navigation
 /// (Overview, Users, Reviews, Profile).
 class TherapistShell extends StatefulWidget {
-  const TherapistShell({super.key, this.onSignOut});
+  const TherapistShell({super.key, this.profile = MockData.therapist});
 
-  final VoidCallback? onSignOut;
+  /// The signed-in therapist.
+  final UserProfile profile;
 
   @override
   State<TherapistShell> createState() => _TherapistShellState();
@@ -30,7 +33,7 @@ class _TherapistShellState extends State<TherapistShell> {
       MaterialPageRoute(
         builder: (_) => SessionReviewScreen(
           observation: observation,
-          therapistName: MockData.therapist.name,
+          therapistName: widget.profile.name,
         ),
       ),
     );
@@ -48,23 +51,14 @@ class _TherapistShellState extends State<TherapistShell> {
     );
   }
 
-  void _linkUser() {
-    // Invite-code linking comes with Firestore.
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Linking by invitation code is coming next.'),
-        ),
-      );
-  }
+  void _linkUser() => showInviteCodeSheet(context, widget.profile.inviteCode);
 
   @override
   Widget build(BuildContext context) {
     final patients = MockData.patients;
     final tabs = [
       OverviewScreen(
-        therapist: MockData.therapist,
+        therapist: widget.profile,
         patients: patients,
         onOpenPatient: _openPatient,
         onOpenObservation: _openObservation,
@@ -76,7 +70,7 @@ class _TherapistShellState extends State<TherapistShell> {
         onLinkUser: _linkUser,
       ),
       ReviewsScreen(patients: patients, onOpenObservation: _openObservation),
-      ProfileScreen(profile: MockData.therapist, onSignOut: widget.onSignOut),
+      ProfileScreen(profile: widget.profile),
     ];
 
     return Scaffold(

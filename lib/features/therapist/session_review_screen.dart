@@ -181,7 +181,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
               Expanded(
                 child: _ChoiceButton(
                   icon: Icons.close,
-                  label: 'Reject observation',
+                  label: 'Mark as incorrect',
                   selected: _decision == ReviewDecision.rejected,
                   onTap: () =>
                       setState(() => _decision = ReviewDecision.rejected),

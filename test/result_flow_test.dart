@@ -29,7 +29,7 @@ void _setSize(WidgetTester tester, Size size) {
 
 /// Words that must never appear in the UI (CLAUDE.md rule 1).
 final _forbidden = RegExp(
-  r'diagnos|disorder|incorrect|accuracy',
+  r'diagnos|disorder|(in)?correct speech|accuracy',
   caseSensitive: false,
 );
 

@@ -10,4 +10,7 @@ enum UserRole {
 
   /// Text shown in the UI.
   final String label;
+
+  static UserRole fromFirestore(String value) =>
+      values.firstWhere((role) => role.firestoreValue == value);
 }

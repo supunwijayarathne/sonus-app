@@ -54,7 +54,7 @@ class _UsersScreenState extends State<UsersScreen> {
               const SonusLogo(),
               IconButton.filled(
                 onPressed: widget.onLinkUser,
-                tooltip: 'Link a user',
+                tooltip: 'Invite a user',
                 icon: const Icon(Icons.add),
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.surface,
@@ -159,13 +159,13 @@ class _LinkUserCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Link a user',
+                        'Invite a user',
                         style: AppTypography.sectionTitle.copyWith(
                           fontSize: 17,
                         ),
                       ),
                       Text(
-                        'Connect with an invitation code',
+                        'Share your invite code',
                         style: AppTypography.caption,
                       ),
                     ],

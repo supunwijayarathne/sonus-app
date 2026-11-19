@@ -9,10 +9,12 @@ import '../../widgets/labeled_text_field.dart';
 import '../../widgets/responsive_page.dart';
 import '../../widgets/round_back_button.dart';
 import '../../widgets/segmented_toggle.dart';
+import '../../services/auth_repository.dart';
 import 'auth_common.dart';
 
 /// Called when the form is valid and the user taps "Create account".
-typedef SignUpCallback = void Function(
+/// Throws [AuthFailure] with a message to show when it fails.
+typedef SignUpCallback = Future<void> Function(
   UserRole role,
   String name,
   String email,
@@ -42,6 +44,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   UserRole _role = UserRole.user;
   bool _hidePassword = true;
+  bool _busy = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -51,14 +55,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    widget.onCreateAccount?.call(
-      _role,
-      _name.text.trim(),
-      _email.text.trim(),
-      _password.text,
-    );
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.onCreateAccount?.call(
+        _role,
+        _name.text.trim(),
+        _email.text.trim(),
+        _password.text,
+      );
+    } on AuthFailure catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -139,9 +153,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg + 2),
+              if (_error != null) ...[
+                FormError(_error!),
+                const SizedBox(height: AppSpacing.md),
+              ],
               FilledButton(
-                onPressed: _submit,
-                child: const ArrowLabel('Create account'),
+                onPressed: _busy ? null : _submit,
+                child: _busy
+                    ? const ButtonSpinner()
+                    : const ArrowLabel('Create account'),
               ),
               const SizedBox(height: AppSpacing.sm),
               Center(

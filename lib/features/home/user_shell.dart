@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../data/mock_data.dart';
 import '../../models/practice_session.dart';
+import '../../models/user_profile.dart';
 import '../../theme/app_colors.dart';
 import '../history/history_screen.dart';
 import '../practice/practice_flow.dart';
@@ -11,9 +12,10 @@ import 'home_screen.dart';
 
 /// Adult user's main screen with the bottom navigation (Home, Practice, History, Profile).
 class UserShell extends StatefulWidget {
-  const UserShell({super.key, this.onSignOut});
+  const UserShell({super.key, this.profile = MockData.user});
 
-  final VoidCallback? onSignOut;
+  /// The signed-in adult user.
+  final UserProfile profile;
 
   @override
   State<UserShell> createState() => _UserShellState();
@@ -49,7 +51,7 @@ class _UserShellState extends State<UserShell> {
   Widget build(BuildContext context) {
     final tabs = [
       HomeScreen(
-        summary: MockData.homeSummary(),
+        summary: MockData.homeSummary(widget.profile),
         onStartPractice: _startPractice,
         onViewHistory: () => setState(() => _tab = 2),
         onOpenSession: _openSession,
@@ -57,7 +59,7 @@ class _UserShellState extends State<UserShell> {
       // Never shown: the Practice item is a shortcut (see _onNavTap).
       const SizedBox.shrink(),
       HistoryScreen(sessions: MockData.sessions(), onOpenSession: _openSession),
-      ProfileScreen(profile: MockData.user, onSignOut: widget.onSignOut),
+      ProfileScreen(profile: widget.profile),
     ];
 
     return Scaffold(

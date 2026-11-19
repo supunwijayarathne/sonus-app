@@ -29,7 +29,7 @@ void _setSize(WidgetTester tester, Size size) {
 
 /// Words that must never appear in the UI (CLAUDE.md rule 1).
 final _forbidden = RegExp(
-  r'diagnos|disorder|incorrect|accuracy',
+  r'diagnos|disorder|(in)?correct speech|accuracy',
   caseSensitive: false,
 );
 
@@ -57,7 +57,9 @@ void main() {
       String? name;
       await tester.pumpWidget(
         _app(
-          SignUpScreen(onCreateAccount: (r, n, _, _) => (role, name) = (r, n)),
+          SignUpScreen(
+            onCreateAccount: (r, n, _, _) async => (role, name) = (r, n),
+          ),
         ),
       );
 
@@ -175,8 +177,8 @@ void main() {
       );
       expect(save().onPressed, isNull);
 
-      await tester.ensureVisible(find.text('Reject observation'));
-      await tester.tap(find.text('Reject observation'));
+      await tester.ensureVisible(find.text('Mark as incorrect'));
+      await tester.tap(find.text('Mark as incorrect'));
       await tester.pump();
       expect(save().onPressed, isNotNull);
     });

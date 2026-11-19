@@ -1,0 +1,13 @@
+{
+  "name": "sonus-firestore-rules-tests",
+  "private": true,
+  "description": "Tests for firestore.rules, run against the local Firestore emulator.",
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-sonus \"node --test rules.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.4.0"
+  }
+}

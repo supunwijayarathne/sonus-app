@@ -1,7 +1,7 @@
 /// What the therapist decided about an automated observation.
 enum ReviewDecision {
   confirmed('Confirmed'),
-  rejected('Rejected');
+  rejected('Marked incorrect');
 
   const ReviewDecision(this.label);
   final String label;

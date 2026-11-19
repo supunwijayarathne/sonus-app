@@ -177,7 +177,8 @@ class MockData {
     ];
   }
 
-  static HomeSummary homeSummary() {
+  /// Home data for [profile]; the week and sessions are still sample data.
+  static HomeSummary homeSummary([UserProfile profile = user]) {
     final today = DateTime.now().weekday; // 1 = Monday .. 7 = Sunday
 
     // Done on the days before today, then "today", then open days.
@@ -189,8 +190,8 @@ class MockData {
     ];
 
     return HomeSummary(
-      firstName: user.firstName,
-      initials: user.initials,
+      firstName: profile.firstName,
+      initials: profile.initials,
       week: week,
       sessionsDone: week.where((d) => d == DayStatus.done).length.clamp(0, 4),
       sessionsPlanned: 4,
