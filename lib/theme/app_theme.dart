@@ -42,6 +42,9 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.accent,
           foregroundColor: AppColors.onAccent,
+          // Disabled ("Save review" before a choice): dimmed accent.
+          disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.45),
+          disabledForegroundColor: AppColors.onAccent.withValues(alpha: 0.7),
           minimumSize: const Size.fromHeight(AppSpacing.buttonHeight),
           textStyle: AppTypography.button,
           shape: RoundedRectangleBorder(

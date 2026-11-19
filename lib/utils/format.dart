@@ -28,6 +28,21 @@ String sessionTime(DateTime at, {DateTime? now}) {
   return '${_months[at.month - 1].substring(0, 3)} ${at.day}, $clock';
 }
 
+/// "today", "yesterday" or "Mar 18" (for "Last session today").
+String relativeDay(DateTime at, {DateTime? now}) {
+  now ??= DateTime.now();
+  final day = DateTime(at.year, at.month, at.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final diff = today.difference(day).inDays;
+  if (diff == 0) return 'today';
+  if (diff == 1) return 'yesterday';
+  return '${_months[at.month - 1].substring(0, 3)} ${at.day}';
+}
+
+/// "Jan 2026" ("Linked Jan 2026").
+String shortMonthYear(DateTime at) =>
+    '${_months[at.month - 1].substring(0, 3)} ${at.year}';
+
 /// "March 2026" (history section headings).
 String monthYear(DateTime at) => '${_months[at.month - 1]} ${at.year}';
 

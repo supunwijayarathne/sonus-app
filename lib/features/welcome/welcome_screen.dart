@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/arrow_label.dart';
 import '../../widgets/outline_pill.dart';
 import '../../widgets/responsive_page.dart';
 import '../../widgets/sonus_logo.dart';
@@ -59,14 +60,7 @@ class WelcomeScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl + AppSpacing.sm),
           FilledButton(
             onPressed: onGetStarted,
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Get started'),
-                SizedBox(width: AppSpacing.md),
-                Icon(Icons.arrow_forward, size: 20),
-              ],
-            ),
+            child: const ArrowLabel('Get started'),
           ),
           const SizedBox(height: AppSpacing.md),
           Center(

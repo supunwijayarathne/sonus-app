@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../models/user_profile.dart';
+import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -35,6 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = widget.profile;
+    final records = profile.role == UserRole.user;
 
     return ResponsivePage(
       builder: (context, scale) => Column(
@@ -73,12 +75,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: 'Name and email',
                 onTap: _comingSoon,
               ),
-              SettingsTile(
-                icon: Icons.mic_none,
-                title: 'Microphone access',
-                subtitle: 'Allowed', // read from the OS permission later
-                onTap: _comingSoon,
-              ),
+              // Only adult users record, so only they see recording rows.
+              if (records)
+                SettingsTile(
+                  icon: Icons.mic_none,
+                  title: 'Microphone access',
+                  subtitle: 'Allowed', // read from the OS permission later
+                  onTap: _comingSoon,
+                ),
               SettingsTile(
                 icon: Icons.notifications_none,
                 title: 'Notifications',
@@ -100,12 +104,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: 'Recordings and data',
                 onTap: _comingSoon,
               ),
-              SettingsTile(
-                icon: Icons.settings_outlined,
-                title: 'Recording preferences',
-                subtitle: 'Delete after 30 days',
-                onTap: _comingSoon,
-              ),
+              if (records)
+                SettingsTile(
+                  icon: Icons.settings_outlined,
+                  title: 'Recording preferences',
+                  subtitle: 'Delete after 30 days',
+                  onTap: _comingSoon,
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.xl),

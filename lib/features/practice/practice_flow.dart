@@ -47,6 +47,8 @@ class PracticeFlow {
       audioPath: '', // real recording comes with the record package
     );
     final attempt = WordAttempt(
+      // Firestore creates the real ID later.
+      id: 'local-${DateTime.now().microsecondsSinceEpoch}',
       word: word,
       result: result,
       recordingLength: Duration(

@@ -4,10 +4,12 @@ import '../../models/user_role.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/arrow_label.dart';
 import '../../widgets/labeled_text_field.dart';
 import '../../widgets/responsive_page.dart';
 import '../../widgets/round_back_button.dart';
 import '../../widgets/segmented_toggle.dart';
+import 'auth_common.dart';
 
 /// Called when the form is valid and the user taps "Sign in".
 typedef SignInCallback = void Function(
@@ -50,21 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
     widget.onSignIn?.call(_role, _email.text.trim(), _password.text);
   }
 
-  static String? _validateEmail(String? value) {
-    final email = value?.trim() ?? '';
-    if (email.isEmpty) return 'Please enter your email.';
-    // Simple shape check; Firebase does the real check.
-    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
-      return 'That email doesn\'t look right.';
-    }
-    return null;
-  }
-
-  static String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'Please enter your password.';
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     return ResponsivePage(
@@ -105,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
-                validator: _validateEmail,
+                validator: AuthValidators.email,
               ),
               const SizedBox(height: AppSpacing.lg),
               LabeledTextField(
@@ -114,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _hidePassword,
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.password],
-                validator: _validatePassword,
+                validator: AuthValidators.password,
                 onFieldSubmitted: (_) => _submit(),
                 suffixIcon: IconButton(
                   tooltip: _hidePassword ? 'Show password' : 'Hide password',
@@ -131,14 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: AppSpacing.lg + 2),
               FilledButton(
                 onPressed: _submit,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Sign in'),
-                    SizedBox(width: AppSpacing.md),
-                    Icon(Icons.arrow_forward, size: 20),
-                  ],
-                ),
+                child: const ArrowLabel('Sign in'),
               ),
               const SizedBox(height: AppSpacing.sm),
               Center(
@@ -151,13 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              // Wording follows CLAUDE.md rule 1 (no "diagnosis" in the UI).
-              Text(
-                'By continuing, you acknowledge that Sonus offers practice '
-                'suggestions for your therapist to review, not a medical assessment.',
-                textAlign: TextAlign.center,
-                style: AppTypography.caption,
-              ),
+              const AuthFootnote(),
               const SizedBox(height: AppSpacing.lg),
             ],
           ),

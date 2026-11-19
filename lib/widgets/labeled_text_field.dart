@@ -18,6 +18,8 @@ class LabeledTextField extends StatelessWidget {
     this.validator,
     this.onFieldSubmitted,
     this.suffixIcon,
+    this.textCapitalization = TextCapitalization.none,
+    this.maxLines = 1,
   });
 
   final String label;
@@ -30,6 +32,10 @@ class LabeledTextField extends StatelessWidget {
   final FormFieldValidator<String>? validator;
   final ValueChanged<String>? onFieldSubmitted;
   final Widget? suffixIcon;
+  final TextCapitalization textCapitalization;
+
+  /// More than 1 for a multi-line note.
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +49,9 @@ class LabeledTextField extends StatelessWidget {
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           obscureText: obscureText,
+          textCapitalization: textCapitalization,
+          maxLines: maxLines,
+          minLines: maxLines > 1 ? maxLines : null,
           autofillHints: autofillHints,
           validator: validator,
           onFieldSubmitted: onFieldSubmitted,

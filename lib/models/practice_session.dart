@@ -1,17 +1,22 @@
 import 'analysis_result.dart';
 import 'practice_word.dart';
 
-/// One recorded word and its automated result.
+/// One recorded word and its automated result (Firestore `attempts/{id}`).
 class WordAttempt {
   const WordAttempt({
+    required this.id,
     required this.word,
     required this.result,
     required this.recordingLength,
     required this.referenceLength,
   });
 
+  final String id;
   final PracticeWord word;
+
+  /// The automated result. Write-once: never changed after it is stored.
   final AnalysisResult result;
+
   final Duration recordingLength;
   final Duration referenceLength;
 }

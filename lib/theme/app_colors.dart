@@ -52,4 +52,7 @@ class AppColors {
   static const Color heroCardTop = Color(0xFF2A2C37);
   static const Color heroCardBottom = Color(0xFF1D1F25);
   static const Color navBar = Color(0xFF111317);
+  // "Needs attention" card (therapist overview): warmer gradient.
+  static const Color attentionTop = Color(0xFF2B2B2C);
+  static const Color attentionBottom = Color(0xFF221F1B);
 }

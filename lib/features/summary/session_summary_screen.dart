@@ -7,6 +7,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/format.dart';
 import '../../widgets/responsive_page.dart';
 import '../../widgets/sonus_logo.dart';
+import '../../widgets/stat_tile.dart';
 import '../../widgets/status_label.dart';
 import '../result/result_screen.dart';
 
@@ -101,16 +102,16 @@ class SessionSummaryScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _StatTile(
-                  '${session.wordsPracticed}',
-                  'Words practiced',
+                child: StatTile(
+                  value: '${session.wordsPracticed}',
+                  label: 'Words practiced',
                 ),
               ),
               const SizedBox(width: AppSpacing.sm + 2),
               Expanded(
-                child: _StatTile(
-                  '${session.possibleDifferences}',
-                  'Possible differences',
+                child: StatTile(
+                  value: '${session.possibleDifferences}',
+                  label: 'Possible differences',
                 ),
               ),
             ],
@@ -135,37 +136,6 @@ class SessionSummaryScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile(this.value, this.label);
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md + 2),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: AppTypography.cardTitle.copyWith(
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(label, style: AppTypography.small),
         ],
       ),
     );
