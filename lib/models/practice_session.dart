@@ -9,6 +9,7 @@ class WordAttempt {
     required this.result,
     required this.recordingLength,
     required this.referenceLength,
+    this.audioPath,
   });
 
   final String id;
@@ -19,11 +20,22 @@ class WordAttempt {
 
   final Duration recordingLength;
   final Duration referenceLength;
+
+  /// The recording on THIS phone, or null (other phone, or sample data).
+  /// Recordings are never uploaded (Spark plan: no Firebase Storage).
+  final String? audioPath;
 }
 
 /// A practice session: the words recorded in one sitting.
 class PracticeSession {
-  const PracticeSession({required this.at, required this.attempts});
+  const PracticeSession({
+    this.id = '',
+    required this.at,
+    required this.attempts,
+  });
+
+  /// Groups the attempts of one sitting (`sessionId` on each attempt).
+  final String id;
 
   final DateTime at;
   final List<WordAttempt> attempts;

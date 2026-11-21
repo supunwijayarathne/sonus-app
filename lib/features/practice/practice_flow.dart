@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
+import '../../models/analysis_result.dart';
 import '../../models/practice_session.dart';
 import '../../models/practice_word.dart';
 import '../../services/analysis_service.dart';
+import '../../services/practice_repository.dart';
+import '../../services/voice_recorder.dart';
 import '../result/result_screen.dart';
 import '../summary/session_summary_screen.dart';
 import 'practice_screen.dart';
@@ -13,13 +18,22 @@ import 'practice_screen.dart';
 ///
 /// Each step *replaces* the previous screen, so the back button always
 /// returns to Home instead of walking back through every word.
+///
+/// Every analysed attempt (retries too) is saved to Firestore straight away,
+/// with the same session ID, so leaving early keeps what was recorded.
 class PracticeFlow {
-  PracticeFlow(this.words);
+  PracticeFlow(this.words, {required this.userId, required this.therapistId})
+    : _sessionId = '$userId-${DateTime.now().millisecondsSinceEpoch}';
 
   final List<PracticeWord> words;
 
-  /// Latest attempt for each word index (a retry replaces it in the summary;
-  /// every attempt is still stored separately once Firestore is connected).
+  /// Whose session this is, and their therapist (stored on each attempt).
+  final String userId;
+  final String therapistId;
+
+  final String _sessionId;
+
+  /// Latest attempt for each word index (a retry replaces it in the summary).
   final Map<int, WordAttempt> _attempts = {};
   final DateTime _startedAt = DateTime.now();
 
@@ -35,30 +49,39 @@ class PracticeFlow {
       builder: (context) => PracticeScreen(
         words: words,
         index: index,
-        onRecord: () => _analyse(context, index),
+        onRecorded: (id, recording, quality) =>
+            _analyse(context, index, id, recording, quality),
       ),
     );
   }
 
-  Future<void> _analyse(BuildContext context, int index) async {
+  Future<void> _analyse(
+    BuildContext context,
+    int index,
+    String attemptId,
+    Recording recording,
+    QualityCheck quality,
+  ) async {
     final word = words[index];
     final result = await analysisService.analyze(
       text: word.text,
-      audioPath: '', // real recording comes with the record package
+      audioPath: recording.path,
     );
     final attempt = WordAttempt(
-      // Firestore creates the real ID later.
-      id: 'local-${DateTime.now().microsecondsSinceEpoch}',
+      id: attemptId,
       word: word,
       result: result,
       recordingLength: Duration(
-        milliseconds: (result.quality.durationS * 1000).round(),
+        milliseconds: (quality.durationS * 1000).round(),
       ),
       referenceLength: const Duration(seconds: 2),
+      audioPath: recording.path,
     );
     _attempts[index] = attempt;
 
     if (!context.mounted) return;
+    _save(context, attempt);
+
     final isLast = index == words.length - 1;
     Navigator.pushReplacement(
       context,
@@ -83,8 +106,29 @@ class PracticeFlow {
     );
   }
 
+  /// Saves without waiting: offline, Firestore keeps the write and sends it
+  /// later, so the user can go on practising. A refused save is shown.
+  void _save(BuildContext context, WordAttempt attempt) {
+    final messenger = ScaffoldMessenger.of(context);
+    unawaited(
+      practiceRepository
+          .saveAttempt(
+            userId: userId,
+            therapistId: therapistId,
+            sessionId: _sessionId,
+            attempt: attempt,
+          )
+          .catchError((Object e) {
+            messenger.showSnackBar(
+              SnackBar(content: Text('This attempt was not saved. $e')),
+            );
+          }),
+    );
+  }
+
   void _showSummary(BuildContext context) {
     final session = PracticeSession(
+      id: _sessionId,
       at: _startedAt,
       attempts: [for (var i = 0; i < words.length; i++) ?_attempts[i]],
     );

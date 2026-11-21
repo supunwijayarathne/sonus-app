@@ -3,11 +3,16 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:sonus_app/main.dart';
 import 'package:sonus_app/services/auth_repository.dart';
+import 'package:sonus_app/services/practice_repository.dart';
 
 import 'fakes/fake_auth_repository.dart';
+import 'fakes/fake_practice_repository.dart';
 
 void main() {
-  setUp(() => authRepository = FakeAuthRepository()); // signed out
+  setUp(() {
+    authRepository = FakeAuthRepository(); // signed out
+    practiceRepository = FakePracticeRepository();
+  });
 
   // Phone, small phone, landscape, tablet: no layout overflow on any of them.
   const sizes = {

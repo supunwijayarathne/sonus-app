@@ -100,7 +100,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'This prototype uses simulated authentication.',
+                "Research prototype: please use a password you don't use elsewhere.",
                 style: AppTypography.body,
               ),
               const SizedBox(height: AppSpacing.xl),

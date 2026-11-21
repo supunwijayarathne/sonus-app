@@ -164,10 +164,22 @@ class FirebaseAuthRepository implements AuthRepository {
       await _userDoc(uid).update({
         'therapistId': invite.data()!['therapistId'],
         'linkedCode': code,
+        'linkedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException {
       throw const AuthFailure(
         'Could not link right now. Please check your connection.',
+      );
+    }
+  }
+
+  @override
+  Future<void> updateName(String name) async {
+    try {
+      await _userDoc(_auth.currentUser!.uid).update({'name': name.trim()});
+    } on FirebaseException {
+      throw const AuthFailure(
+        'Could not save right now. Please check your connection.',
       );
     }
   }

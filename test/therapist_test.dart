@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:sonus_app/data/mock_data.dart';
 import 'package:sonus_app/features/auth/signup_screen.dart';
+import 'package:sonus_app/features/exercises/create_exercise_screen.dart';
 import 'package:sonus_app/features/therapist/patient_profile_screen.dart';
 import 'package:sonus_app/features/therapist/session_review_screen.dart';
 import 'package:sonus_app/features/therapist/therapist_shell.dart';
@@ -10,7 +11,12 @@ import 'package:sonus_app/features/therapist/users_screen.dart';
 import 'package:sonus_app/models/review.dart';
 import 'package:sonus_app/models/user_role.dart';
 import 'package:sonus_app/services/review_store.dart';
+import 'package:sonus_app/services/auth_repository.dart';
+import 'package:sonus_app/services/practice_repository.dart';
 import 'package:sonus_app/theme/app_theme.dart';
+
+import 'fakes/fake_auth_repository.dart';
+import 'fakes/fake_practice_repository.dart';
 
 Widget _app(Widget child) => MaterialApp(theme: AppTheme.dark(), home: child);
 
@@ -34,7 +40,14 @@ final _forbidden = RegExp(
 );
 
 void main() {
-  setUp(reviewStore.clearForTest);
+  late FakePracticeRepository repo;
+
+  setUp(() {
+    reviewStore.clearForTest();
+    authRepository = FakeAuthRepository();
+    repo = FakePracticeRepository.sample();
+    practiceRepository = repo;
+  });
 
   final nimali = MockData.patients.first;
   final observation = nimali.observations.first; // කමල, m -> n
@@ -95,9 +108,10 @@ void main() {
       testWidgets('all tabs fit on ${entry.key}', (tester) async {
         _setSize(tester, entry.value);
         await tester.pumpWidget(_app(const TherapistShell()));
+        await tester.pump(); // data from the fake repository
         expect(find.text('Clinical overview'), findsOneWidget);
 
-        for (final tab in ['Users', 'Reviews', 'Profile']) {
+        for (final tab in ['Users', 'Exercises', 'Reviews', 'Profile']) {
           await tester.tap(find.text(tab).last);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull, reason: tab);
@@ -108,7 +122,22 @@ void main() {
         tester,
       ) async {
         _setSize(tester, entry.value);
-        await tester.pumpWidget(_app(PatientProfileScreen(patient: nimali)));
+        await tester.pumpWidget(
+          _app(
+            PatientProfileScreen(
+              patient: nimali,
+              therapistId: MockData.therapist.id,
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+
+        await tester.pumpWidget(
+          _app(CreateExerciseScreen(therapistId: MockData.therapist.id)),
+        );
+        await tester.enterText(find.byType(TextFormField).first, 'කමල');
+        await tester.pump();
         expect(tester.takeException(), isNull);
 
         await tester.pumpWidget(
@@ -126,6 +155,7 @@ void main() {
     testWidgets('therapist profile hides recording settings', (tester) async {
       _setSize(tester, const Size(402, 874));
       await tester.pumpWidget(_app(const TherapistShell()));
+      await tester.pump(); // data from the fake repository
       await tester.tap(find.text('Profile').last);
       await tester.pumpAndSettle();
       expect(find.text('SPEECH THERAPIST'), findsOneWidget);
@@ -153,7 +183,8 @@ void main() {
     testWidgets('uses suggestion wording only', (tester) async {
       _setSize(tester, const Size(402, 874));
       await tester.pumpWidget(_app(const TherapistShell()));
-      for (final tab in ['Overview', 'Users', 'Reviews']) {
+      await tester.pump(); // data from the fake repository
+      for (final tab in ['Overview', 'Users', 'Exercises', 'Reviews']) {
         await tester.tap(find.text(tab).last);
         await tester.pumpAndSettle();
         expect(find.textContaining(_forbidden), findsNothing, reason: tab);
@@ -228,6 +259,7 @@ void main() {
     ) async {
       _setSize(tester, const Size(402, 874));
       await tester.pumpWidget(_app(const TherapistShell()));
+      await tester.pump(); // data from the fake repository
       final before = MockData.patients
           .expand((p) => p.observations)
           .length
@@ -248,6 +280,114 @@ void main() {
 
       final after = (int.parse(before) - 1).toString().padLeft(2, '0');
       expect(find.text(after), findsWidgets);
+    });
+  });
+
+  group('exercises', () {
+    testWidgets('new exercise shows the sounds while typing, then saves', (
+      tester,
+    ) async {
+      _setSize(tester, const Size(402, 874));
+      await tester.pumpWidget(_app(const TherapistShell()));
+      await tester.pump();
+      await tester.tap(find.text('Exercises').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New exercise').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Sounds appear here as you type.'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextFormField).first, 'hello');
+      await tester.pump();
+      expect(find.text('Please type in Sinhala letters only.'), findsWidgets);
+
+      await tester.enterText(find.byType(TextFormField).first, 'ගෙදර');
+      await tester.pump();
+      for (final sound in ['ɡ', 'e', 'd̪', 'ə', 'r']) {
+        expect(find.text(sound), findsWidgets, reason: sound);
+      }
+
+      await tester.ensureVisible(find.text('Save exercise'));
+      await tester.tap(find.text('Save exercise'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('EXERCISE LIBRARY'), findsOneWidget);
+      expect(find.text('ගෙදර'), findsOneWidget);
+      expect(repo.allExercises.first.expectedPhonemes, [
+        'ɡ',
+        'e',
+        'd̪',
+        'ə',
+        'r',
+        'ə',
+      ]);
+    });
+
+    testWidgets('a long sentence is refused', (tester) async {
+      _setSize(tester, const Size(402, 874));
+      await tester.pumpWidget(
+        _app(CreateExerciseScreen(therapistId: MockData.therapist.id)),
+      );
+      await tester.enterText(
+        find.byType(TextFormField).first,
+        'මම අද උදේ ගෙදර සිට පාසලට ගියා',
+      );
+      await tester.ensureVisible(find.text('Save exercise'));
+      await tester.tap(find.text('Save exercise'));
+      await tester.pump();
+      expect(find.textContaining('up to 4 words'), findsOneWidget);
+      expect(repo.allExercises, hasLength(MockData.exercises.length));
+    });
+
+    testWidgets('assign exercises to a user from their profile', (
+      tester,
+    ) async {
+      _setSize(tester, const Size(402, 874));
+      final kasun = MockData.patients[1];
+      await tester.pumpWidget(
+        _app(
+          PatientProfileScreen(
+            patient: kasun,
+            therapistId: MockData.therapist.id,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.textContaining('Nothing assigned yet'), findsOneWidget);
+
+      await tester.tap(find.text('Assign'));
+      await tester.pumpAndSettle();
+      // Inside the sheet (ගස is also in the analytics word list).
+      await tester.tap(
+        find.descendant(
+          of: find.byType(CheckboxListTile),
+          matching: find.text('ගස'),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Nothing assigned yet'), findsNothing);
+      expect(find.text('ගස'), findsNWidgets(2)); // chip + analytics
+      expect(
+        repo.allAssignments.where((a) => a.userId == kasun.profile.id),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('a new therapist sees how to invite users', (tester) async {
+      _setSize(tester, const Size(402, 874));
+      practiceRepository = FakePracticeRepository(); // no users yet
+      await tester.pumpWidget(_app(const TherapistShell()));
+      await tester.pump();
+
+      expect(find.textContaining('No users yet'), findsOneWidget);
+      expect(find.text('Invite a user'), findsOneWidget);
+
+      await tester.tap(find.text('Exercises').last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('No exercises yet'), findsOneWidget);
     });
   });
 }

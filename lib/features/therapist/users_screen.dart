@@ -4,7 +4,7 @@ import '../../models/patient_record.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../widgets/dashed_border.dart';
+import '../../widgets/dashed_action_card.dart';
 import '../../widgets/patient_tile.dart';
 import '../../widgets/responsive_page.dart';
 import '../../widgets/sonus_logo.dart';
@@ -87,13 +87,20 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _LinkUserCard(onTap: widget.onLinkUser),
+          DashedActionCard(
+            title: 'Invite a user',
+            subtitle: 'Share your invite code',
+            onTap: widget.onLinkUser,
+          ),
           const SizedBox(height: AppSpacing.md + 4),
           if (results.isEmpty)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Text(
-                'No users match "$_query".',
+                widget.patients.isEmpty
+                    ? 'No users yet. When a user enters your invite code, '
+                          'they appear here.'
+                    : 'No users match "$_query".',
                 textAlign: TextAlign.center,
                 style: AppTypography.small,
               ),
@@ -118,64 +125,6 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
           const SizedBox(height: AppSpacing.lg),
         ],
-      ),
-    );
-  }
-}
-
-class _LinkUserCard extends StatelessWidget {
-  const _LinkUserCard({this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.xl);
-    return DashedBorder(
-      color: AppColors.accentMuted,
-      radius: AppRadius.xl,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: radius,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg - 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: AppColors.accentSurface,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: const Icon(Icons.add, color: AppColors.accent),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Invite a user',
-                        style: AppTypography.sectionTitle.copyWith(
-                          fontSize: 17,
-                        ),
-                      ),
-                      Text(
-                        'Share your invite code',
-                        style: AppTypography.caption,
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

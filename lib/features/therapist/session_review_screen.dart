@@ -125,11 +125,12 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
               scale * 0.85,
             ),
           ),
-          Text(
-            attempt.word.romanized,
-            textAlign: TextAlign.center,
-            style: AppTypography.body,
-          ),
+          if (attempt.word.romanized.isNotEmpty)
+            Text(
+              attempt.word.romanized,
+              textAlign: TextAlign.center,
+              style: AppTypography.body,
+            ),
           const SizedBox(height: AppSpacing.lg),
           AudioRow(
             icon: Icons.volume_up_outlined,
@@ -137,10 +138,13 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
             length: attempt.referenceLength,
           ),
           const SizedBox(height: AppSpacing.md - 4),
+          // Recordings stay on the user's phone (no upload yet).
           AudioRow(
             icon: Icons.mic_none,
             title: 'User recording',
             length: attempt.recordingLength,
+            filePath: attempt.audioPath,
+            unavailableText: "Kept on the user's phone",
           ),
           const SizedBox(height: AppSpacing.xl),
           Text('MODEL PREDICTION', style: AppTypography.eyebrow),

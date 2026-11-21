@@ -3,13 +3,22 @@ import 'package:material_ui/material_ui.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/format.dart';
 import '../../widgets/outline_pill.dart';
 
 /// Big "Start practice" card on the home screen. The whole card is tappable.
 class StartPracticeCard extends StatelessWidget {
-  const StartPracticeCard({super.key, required this.scale, this.onTap});
+  const StartPracticeCard({
+    super.key,
+    required this.scale,
+    this.wordCount,
+    this.onTap,
+  });
 
   final double scale;
+
+  /// Number of assigned words (null while loading).
+  final int? wordCount;
   final VoidCallback? onTap;
 
   @override
@@ -18,7 +27,9 @@ class StartPracticeCard extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Start practice. Listen, record, and understand each sound.',
+      label:
+          'Start practice. ${wordCount == null ? '' : '${plural(wordCount!, 'word')}. '}'
+          'Listen, record, and understand each sound.',
       excludeSemantics: true,
       child: Material(
         borderRadius: radius,
@@ -41,7 +52,10 @@ class StartPracticeCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: AppSpacing.lg),
-                    const OutlinePill('5 minute session', fontSize: 11),
+                    OutlinePill(
+                      wordCount == null ? ' ' : plural(wordCount!, 'word'),
+                      fontSize: 11,
+                    ),
                     SizedBox(height: AppSpacing.xxl * scale),
                     Text(
                       'Start practice',

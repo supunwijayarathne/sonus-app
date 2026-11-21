@@ -5,9 +5,12 @@ rules_version = '2';
 // CLAUDE.md privacy rules:
 // - a user sees only their own data,
 // - a therapist sees only users assigned to them (users.therapistId),
-// - nobody can change their own role.
+// - nobody can change their own role,
+// - only therapists create exercises and assignments.
 //
-// attempts / reviews / exercises / assignments are added in a later step.
+// - an automated result (attempts) is write-once: never updated.
+//
+// reviews are added in a later step.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -21,6 +24,15 @@ service cloud.firestore {
 
     function userData(uid) {
       return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function isTherapist() {
+      return signedIn() && userData(request.auth.uid).role == 'therapist';
+    }
+
+    // Fields of the document being written may only be these keys.
+    function onlyKeys(keys) {
+      return request.resource.data.keys().hasOnly(keys);
     }
 
     // ---------------------------------------------------------------- users
@@ -48,12 +60,16 @@ service cloud.firestore {
       // real invite code. role, email, code and inviteCode never change.
       allow update: if isSelf(uid)
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['name', 'therapistId', 'linkedCode'])
+             .hasOnly(['name', 'therapistId', 'linkedCode', 'linkedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
         && (!request.resource.data.diff(resource.data).affectedKeys()
-               .hasAny(['therapistId', 'linkedCode'])
+               .hasAny(['therapistId', 'linkedCode', 'linkedAt'])
             || (resource.data.role == 'user'
                 && validInvite(request.resource.data.linkedCode,
-                               request.resource.data.therapistId)));
+                               request.resource.data.therapistId)
+                && request.resource.data.get('linkedAt', null) == request.time));
 
       allow delete: if false;
     }
@@ -84,6 +100,131 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/users/$(request.auth.uid))
              .data.inviteCode == code;
       allow update, delete: if false;
+    }
+
+    // ------------------------------------------------------------ exercises
+    // exercises/{id} -> { therapistId, text, romanized?, expectedPhonemes,
+    //                     g2pVersion, createdAt }
+    match /exercises/{id} {
+      // Only the therapist who made it (users get a copy in their assignment).
+      allow get, list: if signedIn()
+        && resource.data.therapistId == request.auth.uid;
+
+      allow create: if isTherapist()
+        && onlyKeys(['therapistId', 'text', 'romanized', 'expectedPhonemes',
+                     'g2pVersion', 'createdAt'])
+        && request.resource.data.therapistId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 60
+        && request.resource.data.get('romanized', '') is string
+        && request.resource.data.get('romanized', '').size() <= 60
+        && request.resource.data.expectedPhonemes is list
+        && request.resource.data.expectedPhonemes.size() > 0
+        && request.resource.data.expectedPhonemes.size() <= 100
+        && request.resource.data.g2pVersion is string
+        && request.resource.data.createdAt == request.time;
+
+      // Never edited (results must point to the text that was practised).
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.therapistId == request.auth.uid;
+    }
+
+    function exerciseData(id) {
+      return get(/databases/$(database)/documents/exercises/$(id)).data;
+    }
+
+    // ---------------------------------------------------------- assignments
+    // assignments/{userId}_{exerciseId} -> { therapistId, userId, exerciseId,
+    //     text, romanized?, expectedPhonemes, createdAt }  (copy of the exercise)
+    match /assignments/{id} {
+      // The therapist who assigned it, and the user it is for.
+      allow get, list: if signedIn()
+        && (resource.data.therapistId == request.auth.uid
+            || resource.data.userId == request.auth.uid);
+
+      // A therapist assigns their own exercise to a user linked to them,
+      // with an exact copy of its text and phonemes.
+      allow create: if isTherapist()
+        && onlyKeys(['therapistId', 'userId', 'exerciseId', 'text', 'romanized',
+                     'expectedPhonemes', 'createdAt'])
+        && request.resource.data.therapistId == request.auth.uid
+        && id == request.resource.data.userId + '_' + request.resource.data.exerciseId
+        && userData(request.resource.data.userId).get('therapistId', null)
+             == request.auth.uid
+        && exerciseData(request.resource.data.exerciseId).therapistId
+             == request.auth.uid
+        && request.resource.data.text
+             == exerciseData(request.resource.data.exerciseId).text
+        && request.resource.data.get('romanized', null)
+             == exerciseData(request.resource.data.exerciseId).get('romanized', null)
+        && request.resource.data.expectedPhonemes
+             == exerciseData(request.resource.data.exerciseId).expectedPhonemes
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.therapistId == request.auth.uid;
+    }
+      // ------------------------------------------------------------- attempts
+    // attempts/{id} -> { userId, therapistId, exerciseId, sessionId, text,
+    //     romanized?, recordingMs, createdAt, result{...analysis response...} }
+    // The audio itself stays on the user's phone (Spark plan: no Storage).
+    match /attempts/{id} {
+      // The user who recorded it, and their CURRENT therapist (a therapist
+      // the user has unlinked from can no longer read old attempts).
+      allow get, list: if signedIn()
+        && (resource.data.userId == request.auth.uid
+            || (resource.data.therapistId == request.auth.uid
+                && userData(resource.data.userId).get('therapistId', null)
+                     == request.auth.uid));
+
+      // A linked user saves an attempt at a word assigned to them.
+      allow create: if signedIn()
+        && onlyKeys(['userId', 'therapistId', 'exerciseId', 'sessionId', 'text',
+                     'romanized', 'recordingMs', 'createdAt', 'result'])
+        && request.resource.data.userId == request.auth.uid
+        && userData(request.auth.uid).role == 'user'
+        && request.resource.data.therapistId
+             == userData(request.auth.uid).get('therapistId', null)
+        && assignedText(request.auth.uid, request.resource.data.exerciseId)
+             == request.resource.data.text
+        && request.resource.data.sessionId is string
+        && request.resource.data.sessionId.size() <= 64
+        && request.resource.data.get('romanized', '') is string
+        && request.resource.data.get('romanized', '').size() <= 60
+        && request.resource.data.recordingMs is int
+        && request.resource.data.recordingMs >= 0
+        && request.resource.data.recordingMs <= 20000
+        && request.resource.data.createdAt == request.time
+        && validResult(request.resource.data.result);
+
+      // Write-once (CLAUDE.md rule 2): therapist reviews are separate records.
+      allow update, delete: if false;
+    }
+
+    // Text of the assignment {userId}_{exerciseId} ('' when not assigned).
+    function assignedText(userId, exerciseId) {
+      let path = /databases/$(database)/documents/assignments/$(userId + '_' + exerciseId);
+      return exists(path) && get(path).data.userId == userId
+        ? get(path).data.text : '';
+    }
+
+    // Shape of the analysis service's response (CLAUDE.md API).
+    function validResult(r) {
+      return r is map
+        && r.keys().hasOnly(['quality', 'expected', 'predicted', 'ops',
+                             'match_percent', 'model_version', 'g2p_version'])
+        && r.quality is map
+        && r.quality.ok is bool
+        && r.expected is list && r.expected.size() <= 100
+        && r.predicted is list && r.predicted.size() <= 100
+        && r.ops is list && r.ops.size() <= 200
+        && r.match_percent is number
+        && r.match_percent >= 0 && r.match_percent <= 100
+        && r.model_version is string
+        && r.g2p_version is string;
     }
   }
 }

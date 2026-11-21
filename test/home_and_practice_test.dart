@@ -4,8 +4,17 @@ import 'package:material_ui/material_ui.dart';
 import 'package:sonus_app/data/mock_data.dart';
 import 'package:sonus_app/features/home/user_shell.dart';
 import 'package:sonus_app/features/practice/practice_screen.dart';
+import 'package:sonus_app/models/user_profile.dart';
+import 'package:sonus_app/models/user_role.dart';
+import 'package:sonus_app/services/auth_repository.dart';
+import 'package:sonus_app/services/practice_repository.dart';
+import 'package:sonus_app/services/voice_recorder.dart';
 import 'package:sonus_app/theme/app_theme.dart';
 import 'package:sonus_app/utils/format.dart';
+
+import 'fakes/fake_auth_repository.dart';
+import 'fakes/fake_practice_repository.dart';
+import 'fakes/fake_voice_recorder.dart';
 
 Widget _app(Widget child) => MaterialApp(theme: AppTheme.dark(), home: child);
 
@@ -29,11 +38,18 @@ final _forbidden = RegExp(
 );
 
 void main() {
+  setUp(() {
+    authRepository = FakeAuthRepository();
+    practiceRepository = FakePracticeRepository.sample();
+    voiceRecorder = FakeVoiceRecorder();
+  });
+
   group('home', () {
     for (final entry in _sizes.entries) {
       testWidgets('fits on ${entry.key}', (tester) async {
         _setSize(tester, entry.value);
         await tester.pumpWidget(_app(const UserShell()));
+        await tester.pump(); // data from the fake repository
 
         expect(find.text('Ready for your\nnext practice?'), findsOneWidget);
         expect(find.text('Start practice'), findsOneWidget);
@@ -44,6 +60,7 @@ void main() {
     testWidgets('start practice opens the practice screen', (tester) async {
       _setSize(tester, const Size(402, 874));
       await tester.pumpWidget(_app(const UserShell()));
+      await tester.pump(); // data from the fake repository
 
       await tester.tap(find.text('Start practice'));
       await tester.pumpAndSettle();
@@ -56,6 +73,7 @@ void main() {
     ) async {
       _setSize(tester, const Size(402, 874));
       await tester.pumpWidget(_app(const UserShell()));
+      await tester.pump(); // data from the fake repository
 
       await tester.tap(find.text('Practice'));
       await tester.pumpAndSettle();
@@ -67,8 +85,62 @@ void main() {
       expect(find.text('Start practice'), findsOneWidget);
     });
 
+    testWidgets('tapping an assigned word practises only that word', (
+      tester,
+    ) async {
+      _setSize(tester, const Size(402, 874));
+      await tester.pumpWidget(_app(const UserShell()));
+      await tester.pump();
+
+      expect(find.text('Your exercises'), findsOneWidget);
+      await tester.ensureVisible(find.text('ගස'));
+      await tester.tap(find.text('ගස'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 of 1'), findsOneWidget);
+    });
+
+    testWidgets('not linked: asks for the therapist\'s invite code', (
+      tester,
+    ) async {
+      _setSize(tester, const Size(402, 874));
+      const unlinked = UserProfile(
+        id: 'new-user',
+        name: 'Kasun Jayasuriya',
+        email: 'kasun@example.com',
+        role: UserRole.user,
+      );
+      await tester.pumpWidget(_app(const UserShell(profile: unlinked)));
+      await tester.pump();
+
+      expect(find.text('Start practice'), findsNothing);
+      await tester.tap(find.text('Enter invite code'));
+      await tester.pumpAndSettle();
+      expect(find.text('Link'), findsOneWidget); // the dialog
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      // The Practice shortcut opens the same dialog.
+      await tester.tap(find.text('Practice'));
+      await tester.pumpAndSettle();
+      expect(find.text('Link'), findsOneWidget);
+    });
+
+    testWidgets('linked but nothing assigned: says so', (tester) async {
+      _setSize(tester, const Size(402, 874));
+      practiceRepository = FakePracticeRepository();
+      await tester.pumpWidget(_app(const UserShell()));
+      await tester.pump();
+
+      expect(find.text('No exercises yet'), findsOneWidget);
+      await tester.tap(find.text('Practice'));
+      await tester.pump();
+      expect(find.textContaining('hasn\'t assigned'), findsWidgets);
+      expect(find.text('TARGET WORD'), findsNothing);
+    });
+
     testWidgets('uses suggestion wording only', (tester) async {
       await tester.pumpWidget(_app(const UserShell()));
+      await tester.pump(); // data from the fake repository
       expect(find.textContaining(_forbidden), findsNothing);
     });
   });

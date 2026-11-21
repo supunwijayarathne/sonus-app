@@ -79,6 +79,22 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> updateName(String name) async {
+    final me = _current!;
+    final renamed = UserProfile(
+      id: me.id,
+      name: name.trim(),
+      email: me.email,
+      role: me.role,
+      code: me.code,
+      inviteCode: me.inviteCode,
+      therapistId: me.therapistId,
+    );
+    _accounts[me.email] = (_accounts[me.email]!.$1, renamed);
+    _emit(renamed);
+  }
+
+  @override
   Future<String?> nameOf(String uid) async => _accounts.values
       .map((a) => a.$2)
       .where((p) => p.id == uid)

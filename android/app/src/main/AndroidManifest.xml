@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Recording practice words (the audio stays on the phone). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:label="sonus_app"
         android:name="${applicationName}"

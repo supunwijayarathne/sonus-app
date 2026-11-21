@@ -66,3 +66,7 @@ String numberWord(int n) {
 String plural(int count, String singular, [String? pluralForm]) {
   return '$count ${count == 1 ? singular : (pluralForm ?? '${singular}s')}';
 }
+
+/// "Nov 12" (chart labels).
+String shortDate(DateTime at) =>
+    '${_months[at.month - 1].substring(0, 3)} ${at.day}';

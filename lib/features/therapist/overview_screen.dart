@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/format.dart';
+import '../../widgets/dashed_action_card.dart';
 import '../../widgets/initials_avatar.dart';
 import '../../widgets/observation_card.dart';
 import '../../widgets/patient_tile.dart';
@@ -26,6 +27,7 @@ class OverviewScreen extends StatelessWidget {
     this.onOpenPatient,
     this.onOpenObservation,
     this.onViewAllUsers,
+    this.onLinkUser,
   });
 
   final UserProfile therapist;
@@ -33,6 +35,7 @@ class OverviewScreen extends StatelessWidget {
   final ValueChanged<PatientRecord>? onOpenPatient;
   final ValueChanged<Observation>? onOpenObservation;
   final VoidCallback? onViewAllUsers;
+  final VoidCallback? onLinkUser;
 
   /// "8" -> "08", as in the design.
   static String _twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -108,7 +111,9 @@ class OverviewScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               awaiting.isEmpty
                   ? Text(
-                      'All observations are reviewed.',
+                      patients.every((p) => p.observations.isEmpty)
+                          ? 'Observations appear here once your users practise.'
+                          : 'All observations are reviewed.',
                       style: AppTypography.small,
                     )
                   : _AttentionCard(
@@ -118,15 +123,31 @@ class OverviewScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.xl + AppSpacing.xs),
               SectionHeader(
                 'Assigned users',
-                trailing: TextButton(
-                  onPressed: onViewAllUsers,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.accent,
-                    textStyle: AppTypography.small.copyWith(fontSize: 15),
-                  ),
-                  child: const Text('View all'),
-                ),
+                trailing: patients.isEmpty
+                    ? null
+                    : TextButton(
+                        onPressed: onViewAllUsers,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.accent,
+                          textStyle: AppTypography.small.copyWith(fontSize: 15),
+                        ),
+                        child: const Text('View all'),
+                      ),
               ),
+              if (patients.isEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'No users yet. Share your invite code so users can link '
+                  'to you.',
+                  style: AppTypography.small,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DashedActionCard(
+                  title: 'Invite a user',
+                  subtitle: 'Share your invite code',
+                  onTap: onLinkUser,
+                ),
+              ],
               // The two most recently active users.
               for (final patient in patients.take(2)) ...[
                 PatientTile(

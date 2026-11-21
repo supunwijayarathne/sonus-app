@@ -22,6 +22,9 @@ abstract class AuthRepository {
   /// Users only: link to the therapist who owns [inviteCode].
   Future<void> linkTherapist(String inviteCode);
 
+  /// Changes the signed-in person's display name.
+  Future<void> updateName(String name);
+
   /// The display name of another account the rules let us read
   /// (e.g. the user's own therapist). Null if not found.
   Future<String?> nameOf(String uid);

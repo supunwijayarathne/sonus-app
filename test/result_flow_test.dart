@@ -9,8 +9,15 @@ import 'package:sonus_app/features/result/result_screen.dart';
 import 'package:sonus_app/features/result/result_text.dart';
 import 'package:sonus_app/features/summary/session_summary_screen.dart';
 import 'package:sonus_app/models/analysis_result.dart';
+import 'package:sonus_app/services/auth_repository.dart';
+import 'package:sonus_app/services/practice_repository.dart';
+import 'package:sonus_app/services/voice_recorder.dart';
 import 'package:sonus_app/theme/app_theme.dart';
 import 'package:sonus_app/widgets/result_note.dart';
+
+import 'fakes/fake_auth_repository.dart';
+import 'fakes/fake_practice_repository.dart';
+import 'fakes/fake_voice_recorder.dart';
 
 Widget _app(Widget child) => MaterialApp(theme: AppTheme.dark(), home: child);
 
@@ -34,6 +41,12 @@ final _forbidden = RegExp(
 );
 
 void main() {
+  setUp(() {
+    authRepository = FakeAuthRepository();
+    practiceRepository = FakePracticeRepository.sample();
+    voiceRecorder = FakeVoiceRecorder();
+  });
+
   final kamala = MockData.attemptFor(MockData.practiceWords[1]); // m -> n
   final mala = MockData.attemptFor(MockData.practiceWords[0]); // all match
 
@@ -150,12 +163,15 @@ void main() {
   ) async {
     _setSize(tester, const Size(402, 874));
     await tester.pumpWidget(_app(const UserShell()));
+    await tester.pump(); // data from the fake repository
 
     await tester.tap(find.text('Start practice'));
     await tester.pumpAndSettle();
 
     for (var i = 0; i < MockData.practiceWords.length; i++) {
       await tester.tap(find.byTooltip('Record'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Stop recording'));
       await tester.pump(); // "Analysing…"
       await tester.pump(const Duration(seconds: 1)); // mock service answers
       await tester.pumpAndSettle();

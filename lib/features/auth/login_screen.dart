@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'This prototype uses simulated authentication.',
+                "Research prototype: please use a password you don't use elsewhere.",
                 style: AppTypography.body,
               ),
               const SizedBox(height: AppSpacing.xl),

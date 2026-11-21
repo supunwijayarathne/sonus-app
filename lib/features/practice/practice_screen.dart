@@ -2,10 +2,15 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../models/analysis_result.dart';
 import '../../models/practice_word.dart';
+import '../../services/audio_quality.dart';
+import '../../services/practice_repository.dart';
+import '../../services/voice_recorder.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/format.dart';
 import '../../widgets/circle_action_button.dart';
 import '../../widgets/responsive_page.dart';
 import '../../widgets/round_back_button.dart';
@@ -14,16 +19,19 @@ import 'listen_rings.dart';
 /// One step of a practice session: show the target word, play the
 /// reference audio, then record.
 ///
-/// Reference playback is *simulated* with a timer for now
-/// (replace with just_audio when real reference audio exists).
-/// Recording is *simulated* too: [onRecord] runs the (mock) analysis.
-/// Real recording is the next feature (record package + quality check).
+/// Recording: tap the mic to start, tap again to stop (it also stops by
+/// itself before 15 s). The quality check runs on the phone first; a
+/// recording that fails it is deleted and the user is asked to record again.
+/// Only a recording that passes is handed to [onRecorded] for analysis.
+///
+/// Reference playback is still *simulated* with a timer (there is no
+/// reference audio yet).
 class PracticeScreen extends StatefulWidget {
   const PracticeScreen({
     super.key,
     required this.words,
     this.index = 0,
-    this.onRecord,
+    this.onRecorded,
   });
 
   final List<PracticeWord> words;
@@ -31,37 +39,126 @@ class PracticeScreen extends StatefulWidget {
   /// Which word of [words] is shown (0-based).
   final int index;
 
-  /// Called when the record button is tapped. While its Future runs, the
-  /// panel shows "Analysing…".
-  final Future<void> Function()? onRecord;
+  /// Called with a recording that passed the quality check. While its
+  /// Future runs, the panel shows "Analysing…".
+  final Future<void> Function(
+    String attemptId,
+    Recording recording,
+    QualityCheck quality,
+  )?
+  onRecorded;
 
   @override
   State<PracticeScreen> createState() => _PracticeScreenState();
 }
 
+/// What the record panel is doing.
+enum _Stage { idle, recording, analysing }
+
 class _PracticeScreenState extends State<PracticeScreen> {
   static const _referenceLength = Duration(milliseconds: 1600);
 
+  /// Stop a little before the 15 s limit, so the recording always fits.
+  static final _autoStop = Duration(
+    milliseconds: ((AudioQuality.maxSeconds - 0.5) * 1000).round(),
+  );
+
   bool _playing = false;
-  bool _analysing = false;
   Timer? _timer;
 
-  PracticeWord get _word => widget.words[widget.index];
+  _Stage _stage = _Stage.idle;
+  String? _attemptId;
+  Duration _elapsed = Duration.zero;
+  Timer? _ticker;
 
-  Future<void> _record() async {
-    _pause();
-    setState(() => _analysing = true);
-    try {
-      await widget.onRecord?.call();
-    } finally {
-      if (mounted) setState(() => _analysing = false);
-    }
-  }
+  /// Why the last recording was not used ("please record again").
+  String? _problem;
+
+  PracticeWord get _word => widget.words[widget.index];
 
   @override
   void dispose() {
     _timer?.cancel();
+    _ticker?.cancel();
+    // Leaving mid-recording: throw the recording away.
+    if (_stage == _Stage.recording) voiceRecorder.cancel();
     super.dispose();
+  }
+
+  Future<void> _startRecording() async {
+    _pause();
+    setState(() => _problem = null);
+
+    if (!await voiceRecorder.requestPermission()) {
+      if (mounted) {
+        setState(
+          () => _problem =
+              'Sonus needs the microphone to record. Please allow '
+              "microphone access in your phone's settings.",
+        );
+      }
+      return;
+    }
+
+    final id = practiceRepository.newAttemptId();
+    try {
+      await voiceRecorder.start(id);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _problem = 'Could not start recording. Please try again.',
+        );
+      }
+      return;
+    }
+    if (!mounted) {
+      voiceRecorder.cancel();
+      return;
+    }
+
+    setState(() {
+      _stage = _Stage.recording;
+      _attemptId = id;
+      _elapsed = Duration.zero;
+    });
+    const tick = Duration(milliseconds: 200);
+    _ticker = Timer.periodic(tick, (_) {
+      setState(() => _elapsed += tick);
+      if (_elapsed >= _autoStop) _stopRecording();
+    });
+  }
+
+  Future<void> _stopRecording() async {
+    if (_stage != _Stage.recording) return;
+    _ticker?.cancel();
+    setState(() => _stage = _Stage.analysing);
+
+    final recording = await voiceRecorder.stop();
+    final quality = recording == null
+        ? const QualityCheck(
+            ok: false,
+            reason: AudioQuality.unreadable,
+            durationS: 0,
+          )
+        : AudioQuality.check(recording.bytes);
+
+    if (!quality.ok) {
+      if (recording != null) await voiceRecorder.discard(recording);
+      if (mounted) {
+        setState(() {
+          _stage = _Stage.idle;
+          _problem = quality.reason;
+        });
+      }
+      return;
+    }
+
+    try {
+      final kept = await voiceRecorder.keep(recording!);
+      await widget.onRecorded?.call(_attemptId!, kept, quality);
+    } finally {
+      if (mounted) setState(() => _stage = _Stage.idle);
+    }
   }
 
   void _play() {
@@ -115,11 +212,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
             textAlign: TextAlign.center,
             style: AppTypography.scaled(AppTypography.sinhalaWord, scale),
           ),
-          Text(
-            _word.romanized,
-            textAlign: TextAlign.center,
-            style: AppTypography.body,
-          ),
+          if (_word.romanized.isNotEmpty)
+            Text(
+              _word.romanized,
+              textAlign: TextAlign.center,
+              style: AppTypography.body,
+            ),
           const SizedBox(height: AppSpacing.md),
           Center(
             child: ListenRings(
@@ -158,12 +256,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
           const Spacer(),
           const SizedBox(height: AppSpacing.xl),
           _RecordPanel(
-            analysing: _analysing,
-            onRecord: widget.onRecord == null || _analysing ? null : _record,
+            stage: _stage,
+            elapsed: _elapsed,
+            problem: _problem,
+            onPressed: switch (_stage) {
+              _Stage.idle when widget.onRecorded != null => _startRecording,
+              _Stage.recording => _stopRecording,
+              _ => null,
+            },
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Audio is simulated in this research prototype.',
+            'The reference sound is simulated in this research prototype.',
             textAlign: TextAlign.center,
             style: AppTypography.caption.copyWith(fontSize: 11),
           ),
@@ -217,15 +321,34 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-/// Bottom card with the record button (or a spinner while analysing).
+/// Bottom card with the record / stop button, or a spinner while analysing.
 class _RecordPanel extends StatelessWidget {
-  const _RecordPanel({required this.analysing, this.onRecord});
+  const _RecordPanel({
+    required this.stage,
+    required this.elapsed,
+    this.problem,
+    this.onPressed,
+  });
 
-  final bool analysing;
-  final VoidCallback? onRecord;
+  final _Stage stage;
+  final Duration elapsed;
+  final String? problem;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final (title, subtitle) = switch (stage) {
+      _Stage.idle => ('Tap to record', 'Speak clearly in a comfortable voice.'),
+      _Stage.recording => (
+        'Recording ${clockDuration(elapsed)}',
+        "Tap to stop when you've finished.",
+      ),
+      _Stage.analysing => (
+        'Analysing…',
+        'Comparing your sounds with the expected sounds.',
+      ),
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -234,13 +357,17 @@ class _RecordPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: AppColors.fieldBorder),
+        border: Border.all(
+          color: stage == _Stage.recording
+              ? AppColors.record
+              : AppColors.fieldBorder,
+        ),
       ),
       child: Column(
         children: [
           SizedBox.square(
             dimension: 62,
-            child: analysing
+            child: stage == _Stage.analysing
                 ? const Padding(
                     padding: EdgeInsets.all(AppSpacing.md),
                     child: CircularProgressIndicator(
@@ -249,30 +376,68 @@ class _RecordPanel extends StatelessWidget {
                     ),
                   )
                 : CircleActionButton(
-                    icon: Icons.mic_none,
-                    tooltip: 'Record',
+                    icon: stage == _Stage.recording
+                        ? Icons.stop_rounded
+                        : Icons.mic_none,
+                    tooltip: stage == _Stage.recording
+                        ? 'Stop recording'
+                        : 'Record',
                     color: AppColors.record,
                     iconColor: AppColors.onRecord,
                     size: 62,
-                    onPressed: onRecord,
+                    onPressed: onPressed,
                   ),
           ),
           const SizedBox(height: AppSpacing.md + 4),
           Semantics(
             liveRegion: true,
             child: Text(
-              analysing ? 'Analysing…' : 'Tap to record',
+              title,
               textAlign: TextAlign.center,
               style: AppTypography.status.copyWith(fontSize: 20),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            analysing
-                ? 'Comparing your sounds with the expected sounds.'
-                : 'Speak clearly in a comfortable voice.',
+            subtitle,
             textAlign: TextAlign.center,
             style: AppTypography.small.copyWith(fontSize: 15),
+          ),
+          // Below the button, so the button never moves between taps.
+          if (problem != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _Problem(problem!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Please record again" message (icon + text, not colour alone).
+class _Problem extends StatelessWidget {
+  const _Problem(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppColors.warning,
+            size: 20,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTypography.small.copyWith(color: AppColors.warning),
+            ),
           ),
         ],
       ),

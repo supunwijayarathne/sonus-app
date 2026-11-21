@@ -4,8 +4,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:sonus_app/main.dart';
 import 'package:sonus_app/models/user_role.dart';
 import 'package:sonus_app/services/auth_repository.dart';
+import 'package:sonus_app/services/practice_repository.dart';
 
 import 'fakes/fake_auth_repository.dart';
+import 'fakes/fake_practice_repository.dart';
 
 /// The whole account flow through AuthGate, with fake accounts.
 void main() {
@@ -14,6 +16,7 @@ void main() {
   setUp(() {
     fake = FakeAuthRepository();
     authRepository = fake;
+    practiceRepository = FakePracticeRepository(); // no data yet
   });
 
   Future<void> start(WidgetTester tester) async {
@@ -46,7 +49,9 @@ void main() {
     await tapText(tester, 'Create account');
 
     expect(find.textContaining(', NIMALI'), findsOneWidget); // greeting
-    expect(find.text('Start practice'), findsOneWidget);
+    // A new user first links their therapist, who assigns the words.
+    expect(find.text('Link your therapist'), findsOneWidget);
+    expect(find.text('Start practice'), findsNothing);
   });
 
   testWidgets('wrong password shows a message and stays on log in', (
@@ -119,6 +124,26 @@ void main() {
     await tapText(tester, 'Link');
     expect(find.text('Your therapist'), findsOneWidget);
     expect(find.text('Dr. Amaya Silva'), findsOneWidget);
+
+    // Linked, but nothing assigned yet.
+    await tapText(tester, 'Home');
+    expect(find.text('No exercises yet'), findsOneWidget);
+  });
+
+  testWidgets('edit profile changes the name', (tester) async {
+    await fake.signUp(
+      role: UserRole.user,
+      name: 'Nimali Perera',
+      email: 'nimali@example.com',
+      password: 'password1',
+    );
+    await start(tester);
+
+    await tapText(tester, 'Profile');
+    await tapText(tester, 'Edit profile');
+    await tester.enterText(find.byType(TextFormField).last, 'Nimali P');
+    await tapText(tester, 'Save');
+    expect(find.text('Nimali P'), findsOneWidget);
   });
 
   testWidgets('sign out returns to Welcome', (tester) async {

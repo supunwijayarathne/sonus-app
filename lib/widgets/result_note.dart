@@ -8,7 +8,10 @@ import '../theme/app_typography.dart';
 /// the result is a suggestion, and the match measures sound-sequence
 /// agreement, not speech health or therapy progress.
 class ResultNote extends StatelessWidget {
-  const ResultNote({super.key});
+  const ResultNote({super.key, this.message = text});
+
+  /// Defaults to [text]; the therapist's analytics use their own wording.
+  final String message;
 
   static const text =
       'This automated result compares your sounds with the expected sounds. '
@@ -29,7 +32,10 @@ class ResultNote extends StatelessWidget {
           const Icon(Icons.shield_outlined, color: AppColors.accent, size: 22),
           const SizedBox(width: AppSpacing.md - 4),
           Expanded(
-            child: Text(text, style: AppTypography.small.copyWith(height: 1.5)),
+            child: Text(
+              message,
+              style: AppTypography.small.copyWith(height: 1.5),
+            ),
           ),
         ],
       ),

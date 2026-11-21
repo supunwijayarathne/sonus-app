@@ -88,11 +88,12 @@ class ResultScreen extends StatelessWidget {
               scale * 0.85,
             ),
           ),
-          Text(
-            attempt.word.romanized,
-            textAlign: TextAlign.center,
-            style: AppTypography.body,
-          ),
+          if (attempt.word.romanized.isNotEmpty)
+            Text(
+              attempt.word.romanized,
+              textAlign: TextAlign.center,
+              style: AppTypography.body,
+            ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             ResultText.title(result),
@@ -122,6 +123,8 @@ class ResultScreen extends StatelessWidget {
             icon: Icons.mic_none,
             title: 'Your recording',
             length: attempt.recordingLength,
+            filePath: attempt.audioPath,
+            unavailableText: 'Not on this phone',
           ),
           if (onNext != null) ...[
             const SizedBox(height: AppSpacing.lg),

@@ -8,7 +8,10 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, writeBatch, collection, query, where, getDocs } from 'firebase/firestore';
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc,
+  updateDoc, where, writeBatch,
+} from 'firebase/firestore';
 
 let env;
 
@@ -43,6 +46,19 @@ beforeEach(async () => {
     await setDoc(doc(db, 'users/kasun'), {
       role: 'user', name: 'Kasun J', email: 'kasun@x.com', code: 'SN-1984',
     });
+    await setDoc(doc(db, 'exercises/mala'), {
+      therapistId: 'amaya', text: 'මල', expectedPhonemes: ['m', 'a', 'l', 'ə'],
+      g2pVersion: 'inv-v1.1+app', createdAt: new Date(),
+    });
+    await setDoc(doc(db, 'exercises/gasa'), {
+      therapistId: 'other', text: 'ගස', expectedPhonemes: ['ɡ', 'a', 's', 'ə'],
+      g2pVersion: 'inv-v1.1+app', createdAt: new Date(),
+    });
+    await setDoc(doc(db, 'assignments/nimali_mala'), {
+      therapistId: 'amaya', userId: 'nimali', exerciseId: 'mala',
+      text: 'මල', expectedPhonemes: ['m', 'a', 'l', 'ə'], createdAt: new Date(),
+    });
+    await setDoc(doc(db, 'attempts/a1'), { ...attempt(), createdAt: new Date() });
   });
 });
 
@@ -138,8 +154,18 @@ describe('users: sign-up', () => {
 describe('users: updates', () => {
   it('a user links to a therapist with a valid code', async () => {
     await assertSucceeds(updateDoc(doc(as('kasun'), 'users/kasun'), {
-      therapistId: 'amaya', linkedCode: 'K7MPQ4',
+      therapistId: 'amaya', linkedCode: 'K7MPQ4', linkedAt: serverTimestamp(),
     }));
+  });
+
+  it('linkedAt must be the server time', async () => {
+    await assertFails(updateDoc(doc(as('kasun'), 'users/kasun'), {
+      therapistId: 'amaya', linkedCode: 'K7MPQ4', linkedAt: new Date(2020, 0, 1),
+    }));
+  });
+
+  it('a name cannot be empty', async () => {
+    await assertFails(updateDoc(doc(as('kasun'), 'users/kasun'), { name: '' }));
   });
 
   it('a user cannot link with a code that belongs to someone else', async () => {
@@ -164,5 +190,220 @@ describe('users: updates', () => {
   it('nobody can list invite codes', async () => {
     await assertSucceeds(getDoc(doc(as('kasun'), 'inviteCodes/K7MPQ4')));
     await assertFails(getDocs(collection(as('kasun'), 'inviteCodes')));
+  });
+});
+
+/** A new exercise as the app writes it. */
+function newExercise(therapistId, extra = {}) {
+  return {
+    therapistId, text: 'කමල', romanized: 'kamala',
+    expectedPhonemes: ['k', 'a', 'm', 'a', 'l', 'ə'],
+    g2pVersion: 'inv-v1.1+app', createdAt: serverTimestamp(), ...extra,
+  };
+}
+
+/** A new assignment of exercises/mala as the app writes it. */
+function newAssignment(userId, extra = {}) {
+  return {
+    therapistId: 'amaya', userId, exerciseId: 'mala',
+    text: 'මල', expectedPhonemes: ['m', 'a', 'l', 'ə'],
+    createdAt: serverTimestamp(), ...extra,
+  };
+}
+
+describe('exercises', () => {
+  it('a therapist creates an exercise', async () => {
+    await assertSucceeds(setDoc(doc(as('amaya'), 'exercises/new'), newExercise('amaya')));
+  });
+
+  it('an adult user cannot create an exercise', async () => {
+    await assertFails(setDoc(doc(as('kasun'), 'exercises/new'), newExercise('kasun')));
+  });
+
+  it('a therapist cannot create an exercise in another name', async () => {
+    await assertFails(setDoc(doc(as('amaya'), 'exercises/new'), newExercise('other')));
+  });
+
+  it('an exercise needs text and phonemes, and nothing extra', async () => {
+    const db = as('amaya');
+    await assertFails(setDoc(doc(db, 'exercises/new'), newExercise('amaya', { text: '' })));
+    await assertFails(setDoc(doc(db, 'exercises/new'), newExercise('amaya', { expectedPhonemes: [] })));
+    await assertFails(setDoc(doc(db, 'exercises/new'), newExercise('amaya', { extra: 1 })));
+  });
+
+  it('a therapist reads and lists only their own exercises', async () => {
+    const db = as('amaya');
+    await assertSucceeds(getDoc(doc(db, 'exercises/mala')));
+    await assertFails(getDoc(doc(db, 'exercises/gasa')));
+    await assertSucceeds(getDocs(query(collection(db, 'exercises'), where('therapistId', '==', 'amaya'))));
+    await assertFails(getDocs(collection(db, 'exercises')));
+  });
+
+  it('users cannot read the exercise library', async () => {
+    await assertFails(getDoc(doc(as('nimali'), 'exercises/mala')));
+  });
+
+  it('exercises are never edited; only the owner deletes', async () => {
+    await assertFails(updateDoc(doc(as('amaya'), 'exercises/mala'), { text: 'ගස' }));
+    await assertFails(deleteDoc(doc(as('other'), 'exercises/mala')));
+    await assertSucceeds(deleteDoc(doc(as('amaya'), 'exercises/mala')));
+  });
+});
+
+describe('assignments', () => {
+  it('a therapist assigns their exercise to a linked user', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users/kasun'), { therapistId: 'amaya' });
+    });
+    await assertSucceeds(setDoc(doc(as('amaya'), 'assignments/kasun_mala'), newAssignment('kasun')));
+  });
+
+  it('cannot assign to a user who is not linked to you', async () => {
+    await assertFails(setDoc(doc(as('amaya'), 'assignments/kasun_mala'), newAssignment('kasun')));
+  });
+
+  it('cannot assign an exercise of another therapist', async () => {
+    await assertFails(setDoc(doc(as('amaya'), 'assignments/nimali_gasa'), newAssignment('nimali', {
+      exerciseId: 'gasa', text: 'ගස', expectedPhonemes: ['ɡ', 'a', 's', 'ə'],
+    })));
+  });
+
+  it('the ID and the copy must match the exercise', async () => {
+    await assertFails(setDoc(doc(as('amaya'), 'assignments/nimali_mala2'), newAssignment('nimali')));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), 'assignments/nimali_mala'));
+    });
+    await assertFails(setDoc(doc(as('amaya'), 'assignments/nimali_mala'),
+      newAssignment('nimali', { text: 'ගස' })));
+    await assertSucceeds(setDoc(doc(as('amaya'), 'assignments/nimali_mala'), newAssignment('nimali')));
+  });
+
+  it('an adult user cannot assign exercises', async () => {
+    await assertFails(setDoc(doc(as('nimali'), 'assignments/nimali_mala'), newAssignment('nimali', {
+      therapistId: 'nimali',
+    })));
+  });
+
+  it('the user and their therapist read it; nobody else', async () => {
+    await assertSucceeds(getDoc(doc(as('nimali'), 'assignments/nimali_mala')));
+    await assertSucceeds(getDoc(doc(as('amaya'), 'assignments/nimali_mala')));
+    await assertFails(getDoc(doc(as('kasun'), 'assignments/nimali_mala')));
+    await assertFails(getDoc(doc(as('other'), 'assignments/nimali_mala')));
+  });
+
+  it('list queries must be limited to your own assignments', async () => {
+    await assertSucceeds(getDocs(query(collection(as('nimali'), 'assignments'), where('userId', '==', 'nimali'))));
+    await assertSucceeds(getDocs(query(collection(as('amaya'), 'assignments'),
+      where('therapistId', '==', 'amaya'), where('userId', '==', 'nimali'))));
+    await assertFails(getDocs(query(collection(as('amaya'), 'assignments'), where('userId', '==', 'nimali'))));
+    await assertFails(getDocs(collection(as('kasun'), 'assignments')));
+  });
+
+  it('only the therapist removes an assignment; nobody edits it', async () => {
+    await assertFails(updateDoc(doc(as('amaya'), 'assignments/nimali_mala'), { text: 'ගස' }));
+    await assertFails(deleteDoc(doc(as('nimali'), 'assignments/nimali_mala')));
+    await assertSucceeds(deleteDoc(doc(as('amaya'), 'assignments/nimali_mala')));
+  });
+});
+
+// ---------------------------------------------------------------- attempts
+
+/** A valid attempt by Nimali at මල (assigned by Amaya). */
+function attempt(changes = {}) {
+  return {
+    userId: 'nimali', therapistId: 'amaya', exerciseId: 'mala',
+    sessionId: 's1', text: 'මල', recordingMs: 840,
+    createdAt: serverTimestamp(),
+    result: {
+      quality: { ok: true, reason: null, duration_s: 0.84 },
+      expected: ['m', 'a', 'l', 'ə'], predicted: ['m', 'a', 'r', 'ə'],
+      ops: [
+        { op: 'match', expected: 'm', predicted: 'm', position: 0 },
+        { op: 'match', expected: 'a', predicted: 'a', position: 1 },
+        { op: 'sub', expected: 'l', predicted: 'r', position: 2 },
+        { op: 'match', expected: 'ə', predicted: 'ə', position: 3 },
+      ],
+      match_percent: 75.0,
+      model_version: 'mms300m-L12-bilstm-ctc', g2p_version: 'inv-v1.1+cff96fb2',
+    },
+    ...changes,
+  };
+}
+
+describe('attempts: saving', () => {
+  it('a linked user saves an attempt at an assigned word', async () => {
+    await assertSucceeds(setDoc(doc(as('nimali'), 'attempts/new'), attempt()));
+  });
+
+  it('the text must be the assigned text', async () => {
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), attempt({ text: 'ගස' })));
+  });
+
+  it('only for an exercise assigned to them', async () => {
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'),
+      attempt({ exerciseId: 'gasa', text: 'ගස' })));
+  });
+
+  it('therapistId must be their current therapist', async () => {
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), attempt({ therapistId: 'other' })));
+  });
+
+  it('nobody saves an attempt for someone else', async () => {
+    await assertFails(setDoc(doc(as('kasun'), 'attempts/new'), attempt()));
+    await assertFails(setDoc(doc(as('amaya'), 'attempts/new'), attempt()));
+  });
+
+  it('the time is the server time', async () => {
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), attempt({ createdAt: new Date(0) })));
+  });
+
+  it('the result must have the service shape', async () => {
+    const bad = attempt();
+    bad.result.match_percent = 150;
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), bad));
+    const extra = attempt();
+    extra.result.diagnosis = 'x';
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), extra));
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), attempt({ audio: 'x' })));
+  });
+
+  it('the automated result is write-once', async () => {
+    await assertFails(updateDoc(doc(as('nimali'), 'attempts/a1'), { 'result.match_percent': 100 }));
+    await assertFails(updateDoc(doc(as('amaya'), 'attempts/a1'), { 'result.match_percent': 100 }));
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/a1'), attempt()));
+    await assertFails(deleteDoc(doc(as('nimali'), 'attempts/a1')));
+    await assertFails(deleteDoc(doc(as('amaya'), 'attempts/a1')));
+  });
+});
+
+describe('attempts: reading', () => {
+  it('the user reads their own attempts', async () => {
+    const db = as('nimali');
+    await assertSucceeds(getDoc(doc(db, 'attempts/a1')));
+    await assertSucceeds(getDocs(query(collection(db, 'attempts'), where('userId', '==', 'nimali'))));
+  });
+
+  it('another user cannot', async () => {
+    const db = as('kasun');
+    await assertFails(getDoc(doc(db, 'attempts/a1')));
+    await assertFails(getDocs(query(collection(db, 'attempts'), where('userId', '==', 'nimali'))));
+  });
+
+  it("the user's therapist reads them, another therapist cannot", async () => {
+    await assertSucceeds(getDoc(doc(as('amaya'), 'attempts/a1')));
+    // One user at a time: the rules check that user is still linked.
+    await assertSucceeds(getDocs(query(collection(as('amaya'), 'attempts'),
+      where('therapistId', '==', 'amaya'), where('userId', '==', 'nimali'))));
+    await assertFails(getDoc(doc(as('other'), 'attempts/a1')));
+    await assertFails(getDocs(query(collection(as('other'), 'attempts'),
+      where('therapistId', '==', 'amaya'), where('userId', '==', 'nimali'))));
+    await assertFails(getDocs(query(collection(as('other'), 'attempts'),
+      where('userId', '==', 'nimali'))));
+  });
+
+  it('after the user links another therapist, the old one cannot read', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), 'users/nimali'), { therapistId: 'other' }));
+    await assertFails(getDoc(doc(as('amaya'), 'attempts/a1')));
   });
 });

@@ -1,20 +1,20 @@
 import '../models/analysis_result.dart';
-import '../models/home_summary.dart';
+import '../models/exercise.dart';
 import '../models/patient_record.dart';
 import '../models/practice_session.dart';
 import '../models/practice_word.dart';
 import '../models/user_profile.dart';
 import '../models/user_role.dart';
+import '../services/g2p.dart';
 
-/// Sample data for building the UI before Firebase and the analysis service
-/// are connected. Everything that reads from here will read from Firestore
-/// (or the service) later.
-///
-/// The phoneme sequences are illustrative only; real ones come from G2P.
+/// Sample data: used by the mock analysis service and by the widget tests
+/// (through a fake repository). The app itself reads Firestore.
 class MockData {
   MockData._();
 
   static const UserProfile user = UserProfile(
+    id: 'sample-user',
+    therapistId: 'sample-therapist',
     name: 'Nimali Perera',
     email: 'nimali@example.com',
     role: UserRole.user,
@@ -29,15 +29,6 @@ class MockData {
     PracticeWord(text: 'රස', romanized: 'rasa'),
   ];
 
-  /// Expected phonemes per word (space-separated, as G2P returns them).
-  static const Map<String, String> _expected = {
-    'මල': 'm a l ə',
-    'කමල': 'k a m a l ə',
-    'ගස': 'ɡ a s ə',
-    'පොත': 'p o t̪ ə',
-    'රස': 'r a s ə',
-  };
-
   /// Simulated detections: word -> {position: detected sound}.
   static const Map<String, Map<int, String>> _substitutions = {
     'කමල': {2: 'n'},
@@ -46,8 +37,7 @@ class MockData {
 
   /// Mock `POST /analyze` response for [text] (same JSON shape as CLAUDE.md).
   static Map<String, dynamic> analysisJsonFor(String text) {
-    // Split on spaces, never per character (t̪ is two code points).
-    final expected = (_expected[text] ?? 'a').split(' ');
+    final expected = SinhalaG2p.convert(text).phonemes;
     final subs = _substitutions[text] ?? const {};
 
     final ops = <Map<String, dynamic>>[];
@@ -119,6 +109,7 @@ class MockData {
   // Therapist side
 
   static const UserProfile therapist = UserProfile(
+    id: 'sample-therapist',
     name: 'Dr. Amaya Silva',
     email: 'amaya@sonus.care',
     role: UserRole.therapist,
@@ -137,6 +128,9 @@ class MockData {
     ) {
       return PatientRecord(
         profile: UserProfile(
+          // Nimali is also the sample adult user.
+          id: code == user.code ? user.id : 'user-$code',
+          therapistId: therapist.id,
           name: name,
           email: '${name.split(' ').first.toLowerCase()}@example.com',
           role: UserRole.user,
@@ -177,25 +171,31 @@ class MockData {
     ];
   }
 
-  /// Home data for [profile]; the week and sessions are still sample data.
-  static HomeSummary homeSummary([UserProfile profile = user]) {
-    final today = DateTime.now().weekday; // 1 = Monday .. 7 = Sunday
+  /// The therapist's library: the practice words.
+  static final List<Exercise> exercises = [
+    for (final (i, word) in practiceWords.indexed)
+      Exercise(
+        id: 'exercise-$i',
+        therapistId: therapist.id,
+        text: word.text,
+        romanized: word.romanized,
+        expectedPhonemes: SinhalaG2p.convert(word.text).phonemes,
+        g2pVersion: SinhalaG2p.version,
+        createdAt: DateTime(2026, 11, 1).add(Duration(minutes: i)),
+      ),
+  ];
 
-    // Done on the days before today, then "today", then open days.
-    final week = [
-      for (var day = 1; day <= 7; day++)
-        day < today
-            ? DayStatus.done
-            : (day == today ? DayStatus.today : DayStatus.open),
-    ];
-
-    return HomeSummary(
-      firstName: profile.firstName,
-      initials: profile.initials,
-      week: week,
-      sessionsDone: week.where((d) => d == DayStatus.done).length.clamp(0, 4),
-      sessionsPlanned: 4,
-      recent: sessions().first,
-    );
-  }
+  /// Every exercise assigned to [user].
+  static final List<Assignment> assignments = [
+    for (final exercise in exercises)
+      Assignment(
+        therapistId: therapist.id,
+        userId: user.id,
+        exerciseId: exercise.id,
+        text: exercise.text,
+        romanized: exercise.romanized,
+        expectedPhonemes: exercise.expectedPhonemes,
+        createdAt: exercise.createdAt,
+      ),
+  ];
 }

@@ -11,6 +11,9 @@ import 'models/user_profile.dart';
 import 'models/user_role.dart';
 import 'services/auth_repository.dart';
 import 'services/firebase_auth_repository.dart';
+import 'services/firebase_practice_repository.dart';
+import 'services/practice_repository.dart';
+import 'services/voice_recorder.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 
@@ -19,6 +22,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   authRepository = FirebaseAuthRepository();
+  practiceRepository = FirebasePracticeRepository();
+  voiceRecorder = RecordVoiceRecorder();
+  await RecordingFiles.init();
   runApp(const SonusApp());
 }
 

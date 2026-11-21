@@ -11,47 +11,29 @@ import '../../theme/app_typography.dart';
 import '../../widgets/responsive_page.dart';
 import '../../widgets/settings_group.dart';
 import '../../widgets/sonus_logo.dart';
+import 'link_therapist_dialog.dart';
 
-/// Profile tab: who is signed in, account and privacy settings, sign out.
-///
-/// The settings rows are placeholders until those screens exist.
-class ProfileScreen extends StatefulWidget {
+/// Profile tab: who is signed in, therapist link / invite code, name, sign out.
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.profile, this.onSignOut});
 
   final UserProfile profile;
   final VoidCallback? onSignOut;
 
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  // Local only for now. Reminders would be local notifications, so no
-  // third-party push or analytics SDK is needed (CLAUDE.md rule 3).
-  bool _notifications = true;
-
-  void _comingSoon() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Coming soon.')));
-  }
-
-  Future<void> _openLinkDialog() async {
-    final linked = await showDialog<bool>(
+  Future<void> _editName(BuildContext context) async {
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (_) => const _LinkTherapistDialog(),
+      builder: (_) => _EditNameDialog(name: profile.name),
     );
-    if (linked == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Linked to your therapist.')),
-      );
+    if (saved == true && context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Name saved.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final profile = widget.profile;
-    final records = profile.role == UserRole.user;
+    final isUser = profile.role == UserRole.user;
 
     return ResponsivePage(
       builder: (context, scale) => Column(
@@ -60,9 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.md),
           const Align(alignment: Alignment.centerLeft, child: SonusLogo()),
           const SizedBox(height: AppSpacing.xl + AppSpacing.sm),
-          Center(
-            child: _Avatar(initials: profile.initials, onEdit: _comingSoon),
-          ),
+          Center(child: _Avatar(initials: profile.initials)),
           const SizedBox(height: AppSpacing.md + 4),
           Text(
             profile.name,
@@ -83,9 +63,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.xl + AppSpacing.sm),
           // Linking (CLAUDE.md: therapist linking by invite code).
           SettingsGroup(
-            title: records ? 'Therapist' : 'Invite',
+            title: isUser ? 'Therapist' : 'Invite',
             tiles: [
-              if (!records)
+              if (!isUser)
                 SettingsTile(
                   icon: Icons.qr_code_2,
                   title: 'Your invite code',
@@ -97,7 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.link,
                   title: 'Link your therapist',
                   subtitle: 'Enter their invite code',
-                  onTap: _openLinkDialog,
+                  onTap: () => showLinkTherapistDialog(context),
                 )
               else
                 SettingsTile(
@@ -115,46 +95,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SettingsTile(
                 icon: Icons.edit_outlined,
                 title: 'Edit profile',
-                subtitle: 'Name and email',
-                onTap: _comingSoon,
+                subtitle: 'Your name',
+                onTap: () => _editName(context),
               ),
-              // Only adult users record, so only they see recording rows.
-              if (records)
-                SettingsTile(
-                  icon: Icons.mic_none,
-                  title: 'Microphone access',
-                  subtitle: 'Allowed', // read from the OS permission later
-                  onTap: _comingSoon,
-                ),
-              SettingsTile(
-                icon: Icons.notifications_none,
-                title: 'Notifications',
-                onTap: () => setState(() => _notifications = !_notifications),
-                trailing: Switch(
-                  value: _notifications,
-                  onChanged: (value) => setState(() => _notifications = value),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          SettingsGroup(
-            title: 'Privacy',
-            tiles: [
+              // Information only (CLAUDE.md rule 3).
               SettingsTile(
                 icon: Icons.shield_outlined,
-                title: 'Privacy settings',
-                subtitle: 'Recordings and data',
-                onTap: _comingSoon,
+                title: 'Your data',
+                subtitle: isUser
+                    ? 'Only you and your linked therapist see your practice.'
+                    : 'You see only the users linked to you.',
+                trailing: const SizedBox.shrink(),
               ),
-              // "Recording preferences / Delete after 30 days" removed:
-              // automatic deletion needs Cloud Functions (not on Spark plan).
             ],
           ),
           const SizedBox(height: AppSpacing.xl),
           FilledButton.icon(
             // AuthGate shows Welcome once the user is signed out.
-            onPressed: widget.onSignOut ?? () => authRepository.signOut(),
+            onPressed: onSignOut ?? () => authRepository.signOut(),
             icon: const Icon(Icons.logout),
             label: const Text('Sign out'),
             style: FilledButton.styleFrom(
@@ -165,6 +123,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.lg),
         ],
       ),
+    );
+  }
+}
+
+/// Dialog to change the display name.
+class _EditNameDialog extends StatefulWidget {
+  const _EditNameDialog({required this.name});
+
+  final String name;
+
+  @override
+  State<_EditNameDialog> createState() => _EditNameDialogState();
+}
+
+class _EditNameDialogState extends State<_EditNameDialog> {
+  late final _name = TextEditingController(text: widget.name);
+  final _formKey = GlobalKey<FormState>();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await authRepository.updateName(_name.text);
+      if (mounted) Navigator.pop(context, true);
+    } on AuthFailure catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: Text('Edit profile', style: AppTypography.title),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _name,
+              autofocus: true,
+              maxLength: 60,
+              textCapitalization: TextCapitalization.words,
+              style: AppTypography.input,
+              decoration: const InputDecoration(labelText: 'Full name'),
+              validator: AuthValidators.name,
+              onFieldSubmitted: (_) => _save(),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              FormError(_error!),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _busy ? null : _save,
+          style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
@@ -187,144 +226,27 @@ class _TherapistName extends StatelessWidget {
   }
 }
 
-/// Dialog where an adult user types their therapist's invite code.
-class _LinkTherapistDialog extends StatefulWidget {
-  const _LinkTherapistDialog();
-
-  @override
-  State<_LinkTherapistDialog> createState() => _LinkTherapistDialogState();
-}
-
-class _LinkTherapistDialogState extends State<_LinkTherapistDialog> {
-  final _code = TextEditingController();
-  bool _busy = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _code.dispose();
-    super.dispose();
-  }
-
-  Future<void> _link() async {
-    if (_code.text.trim().isEmpty) {
-      setState(() => _error = 'Please enter the code.');
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await authRepository.linkTherapist(_code.text);
-      if (mounted) Navigator.pop(context, true);
-    } on AuthFailure catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: Text('Link your therapist', style: AppTypography.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Your therapist can see your practice sessions and review them. '
-            'Ask them for their 6-character invite code.',
-            style: AppTypography.small,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _code,
-            autofocus: true,
-            textCapitalization: TextCapitalization.characters,
-            style: AppTypography.input.copyWith(letterSpacing: 3),
-            decoration: const InputDecoration(hintText: 'K7MPQ4'),
-            onSubmitted: (_) => _link(),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            FormError(_error!),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: _busy ? null : _link,
-          style: TextButton.styleFrom(foregroundColor: AppColors.accent),
-          child: const Text('Link'),
-        ),
-      ],
-    );
-  }
-}
-
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.initials, required this.onEdit});
+  const _Avatar({required this.initials});
 
   final String initials;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 80,
-      child: Stack(
-        children: [
-          Container(
-            width: 76,
-            height: 76,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: AppColors.accentSurface,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              initials,
-              style: AppTypography.title.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                shape: BoxShape.circle,
-              ),
-              padding: const EdgeInsets.all(3),
-              child: IconButton.filled(
-                onPressed: onEdit,
-                tooltip: 'Change photo',
-                icon: const Icon(Icons.edit_outlined, size: 14),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: AppColors.onAccent,
-                  fixedSize: const Size.square(26),
-                  minimumSize: const Size.square(26),
-                  padding: EdgeInsets.zero,
-                  // Without this, Material grows the button to a 48 px
-                  // tap area and the badge covers the initials.
-                  // ("Edit profile" below is the large tap target.)
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-          ),
-        ],
+    return Container(
+      width: 76,
+      height: 76,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: AppColors.accentSurface,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        initials,
+        style: AppTypography.title.copyWith(
+          color: AppColors.accent,
+          fontWeight: FontWeight.w400,
+        ),
       ),
     );
   }
