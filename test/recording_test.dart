@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:sonus_app/data/mock_data.dart';
 import 'package:sonus_app/features/home/user_shell.dart';
 import 'package:sonus_app/features/practice/practice_screen.dart';
+import 'package:sonus_app/services/analysis_service.dart';
 import 'package:sonus_app/services/audio_quality.dart';
 import 'package:sonus_app/services/auth_repository.dart';
 import 'package:sonus_app/services/practice_repository.dart';
@@ -105,6 +106,30 @@ void main() {
     await tester.pump(const Duration(seconds: 15));
     await tester.pumpAndSettle();
     expect(analysed, hasLength(1));
+  });
+
+  testWidgets('analysis service unreachable: explains, record again', (
+    tester,
+  ) async {
+    phoneSize(tester);
+    await tester.pumpWidget(
+      _app(
+        PracticeScreen(
+          words: MockData.practiceWords,
+          onRecorded: (id, recording, quality) async =>
+              throw const AnalysisException(AnalysisException.unreachable),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Record'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Stop recording'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(AnalysisException.unreachable), findsOneWidget);
+    expect(recorder.discarded, hasLength(1)); // nothing saved, file deleted
+    expect(find.byTooltip('Record'), findsOneWidget);
   });
 
   testWidgets('no microphone access: explains, does not record', (

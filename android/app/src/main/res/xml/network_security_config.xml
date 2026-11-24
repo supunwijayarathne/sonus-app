@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android blocks plain http:// by default. The analysis service runs on the
+     laptop without HTTPS during development, so plain http is allowed for the
+     laptop only: 10.0.2.2 is the laptop as seen from the Android emulator.
+     To use a real phone on the same Wi-Fi, add the laptop's address here too.
+     Everything else (Firebase) stays HTTPS-only. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

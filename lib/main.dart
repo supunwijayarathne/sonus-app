@@ -9,6 +9,7 @@ import 'features/welcome/welcome_screen.dart';
 import 'firebase_options.dart';
 import 'models/user_profile.dart';
 import 'models/user_role.dart';
+import 'services/analysis_service.dart';
 import 'services/auth_repository.dart';
 import 'services/firebase_auth_repository.dart';
 import 'services/firebase_practice_repository.dart';
@@ -24,6 +25,7 @@ Future<void> main() async {
   authRepository = FirebaseAuthRepository();
   practiceRepository = FirebasePracticeRepository();
   voiceRecorder = RecordVoiceRecorder();
+  analysisService = analysisServiceFromConfig();
   await RecordingFiles.init();
   runApp(const SonusApp());
 }

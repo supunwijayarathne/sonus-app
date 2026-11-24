@@ -1,9 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Recording practice words (the audio stays on the phone). -->
+    <!-- Recording practice words. The recording is kept on the phone and sent
+         to the analysis service only to be analysed. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Firebase and the analysis service (recordings are sent for analysis). -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="sonus_app"
         android:name="${applicationName}"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

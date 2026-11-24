@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/practice_word.dart';
+import '../../services/analysis_service.dart';
 import '../../services/audio_quality.dart';
 import '../../services/practice_repository.dart';
 import '../../services/voice_recorder.dart';
@@ -22,7 +23,9 @@ import 'listen_rings.dart';
 /// Recording: tap the mic to start, tap again to stop (it also stops by
 /// itself before 15 s). The quality check runs on the phone first; a
 /// recording that fails it is deleted and the user is asked to record again.
-/// Only a recording that passes is handed to [onRecorded] for analysis.
+/// Only a recording that passes is handed to [onRecorded] for analysis; if
+/// that fails (e.g. the analysis service can't be reached) the user is told
+/// and records again.
 ///
 /// Reference playback is still *simulated* with a timer (there is no
 /// reference audio yet).
@@ -153,11 +156,21 @@ class _PracticeScreenState extends State<PracticeScreen> {
       return;
     }
 
+    final kept = await voiceRecorder.keep(recording!);
+    String? problem;
     try {
-      final kept = await voiceRecorder.keep(recording!);
       await widget.onRecorded?.call(_attemptId!, kept, quality);
-    } finally {
-      if (mounted) setState(() => _stage = _Stage.idle);
+    } catch (e) {
+      // No result (e.g. the service is down): nothing is saved, so the
+      // recording is deleted and the user records again.
+      await voiceRecorder.discard(kept);
+      problem = e is AnalysisException ? e.message : AnalysisException.failed;
+    }
+    if (mounted) {
+      setState(() {
+        _stage = _Stage.idle;
+        _problem = problem;
+      });
     }
   }
 
