@@ -180,7 +180,9 @@ service cloud.firestore {
                 && userData(resource.data.userId).get('therapistId', null)
                      == request.auth.uid));
 
-      // A linked user saves an attempt at a word assigned to them.
+      // A user saves an attempt at a word assigned to them, or at a starter
+      // word (self-practice, also without a therapist: therapistId is then
+      // null and only the user can read it).
       allow create: if signedIn()
         && onlyKeys(['userId', 'therapistId', 'exerciseId', 'sessionId', 'text',
                      'romanized', 'recordingMs', 'createdAt', 'result'])
@@ -188,8 +190,10 @@ service cloud.firestore {
         && userData(request.auth.uid).role == 'user'
         && request.resource.data.therapistId
              == userData(request.auth.uid).get('therapistId', null)
-        && assignedText(request.auth.uid, request.resource.data.exerciseId)
-             == request.resource.data.text
+        && (assignedText(request.auth.uid, request.resource.data.exerciseId)
+              == request.resource.data.text
+            || isStarterWord(request.resource.data.exerciseId,
+                             request.resource.data.text))
         && request.resource.data.sessionId is string
         && request.resource.data.sessionId.size() <= 64
         && request.resource.data.get('romanized', '') is string
@@ -204,11 +208,22 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Text of the assignment {userId}_{exerciseId} ('' when not assigned).
+    // Text of the assignment {userId}_{exerciseId}, or null when not assigned
+    // (null, not '': an attempt with empty text must never count as assigned).
     function assignedText(userId, exerciseId) {
       let path = /databases/$(database)/documents/assignments/$(userId + '_' + exerciseId);
       return exists(path) && get(path).data.userId == userId
-        ? get(path).data.text : '';
+        ? get(path).data.text : null;
+    }
+
+    // A starter word bundled with the app: id "starter-w001" … "starter-w100"
+    // and a short Sinhala text (the list itself is in the app's assets).
+    function isStarterWord(exerciseId, text) {
+      return exerciseId is string
+        && exerciseId.matches('starter-w[0-9]{3}')
+        && text is string
+        && text.size() > 0
+        && text.size() <= 40;
     }
 
     // Shape of the analysis service's response (CLAUDE.md API).

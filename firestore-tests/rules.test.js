@@ -335,6 +335,11 @@ describe('attempts: saving', () => {
     await assertSucceeds(setDoc(doc(as('nimali'), 'attempts/new'), attempt()));
   });
 
+  it('an empty text never counts as assigned', async () => {
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'),
+      attempt({ exerciseId: 'not-assigned', text: '' })));
+  });
+
   it('the text must be the assigned text', async () => {
     await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), attempt({ text: 'ගස' })));
   });
@@ -373,6 +378,46 @@ describe('attempts: saving', () => {
     await assertFails(setDoc(doc(as('nimali'), 'attempts/a1'), attempt()));
     await assertFails(deleteDoc(doc(as('nimali'), 'attempts/a1')));
     await assertFails(deleteDoc(doc(as('amaya'), 'attempts/a1')));
+  });
+});
+
+describe('attempts: self-practice (starter words)', () => {
+  const starter = (changes = {}) => attempt({ exerciseId: 'starter-w003', text: 'බර', ...changes });
+
+  it('a linked user saves a starter word without an assignment', async () => {
+    await assertSucceeds(setDoc(doc(as('nimali'), 'attempts/new'), starter()));
+  });
+
+  it('a user without a therapist saves it with therapistId null', async () => {
+    await assertSucceeds(setDoc(doc(as('kasun'), 'attempts/new'),
+      starter({ userId: 'kasun', therapistId: null })));
+  });
+
+  it('...but cannot send it to a therapist they are not linked to', async () => {
+    await assertFails(setDoc(doc(as('kasun'), 'attempts/new'),
+      starter({ userId: 'kasun', therapistId: 'amaya' })));
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), starter({ therapistId: null })));
+  });
+
+  it('only real starter ids, and a short text', async () => {
+    for (const exerciseId of ['starter-', 'starter-x01', 'starter-w0001', 'w003', 'gasa']) {
+      await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), starter({ exerciseId })));
+    }
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), starter({ text: '' })));
+    await assertFails(setDoc(doc(as('nimali'), 'attempts/new'), starter({ text: 'බ'.repeat(41) })));
+  });
+
+  it('the linked therapist reads it; nobody else does', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'attempts/self'), { ...starter(), createdAt: new Date() });
+      await setDoc(doc(ctx.firestore(), 'attempts/private'),
+        { ...starter({ userId: 'kasun', therapistId: null }), createdAt: new Date() });
+    });
+    await assertSucceeds(getDoc(doc(as('amaya'), 'attempts/self')));
+    await assertFails(getDoc(doc(as('other'), 'attempts/self')));
+    await assertSucceeds(getDoc(doc(as('kasun'), 'attempts/private')));
+    await assertFails(getDoc(doc(as('amaya'), 'attempts/private')));
+    await assertFails(getDoc(doc(as('other'), 'attempts/private')));
   });
 });
 

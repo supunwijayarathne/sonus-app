@@ -1,0 +1,102 @@
+# Made from ../sonus/exercises/word_list.tsv and tools/reference_audio.py (computer voice).
+id	word	english	group	focus	pair	expected	seconds
+w001	මල	flower	r and l	l (r/l)	බල	m a l ə	1.03
+w002	බල	power; look	r and l	l (r/l)	බර	b a l ə	1.01
+w003	බර	heavy	r and l	r (r/l)	බල	b a r ə	1.05
+w004	ගල	stone	r and l	l (r/l)		ɡ a l ə	1.06
+w005	රට	country	r and l	r (r/l)		r a ʈ ə	1.03
+w006	රස	taste	r and l	r (r/l)		r a s ə	0.96
+w007	රතු	red	r and l	r (r/l)		r a t̪ u	1.01
+w008	ලස්සන	beautiful	r and l	l (r/l)		l a s s ə n ə	1.27
+w009	පාර	road	r and l	r (r/l)		p aː r ə	1.00
+w010	දොර	door	r and l	r (r/l)		d̪ o r ə	1.01
+w011	කිරි	milk	r and l	r (r/l)		k i r i	0.94
+w012	ලේ	blood	r and l	l (r/l)		l eː	1.07
+w013	රෑ	night	r and l	r (r/l)		r æː	0.99
+w014	අලියා	elephant	r and l	l (r/l)		a l i j aː	1.13
+w015	බල්ලා	dog	r and l	l, double l		b a l l aː	1.13
+w016	කුරුල්ලා	bird	r and l	r and l		k u r u l l aː	1.22
+w017	අත	hand	Dental and retroflex	t̪ (dental/retroflex)	අට	a t̪ ə	1.05
+w018	අට	eight	Dental and retroflex	ʈ (dental/retroflex)	අත	a ʈ ə	1.06
+w019	බත	rice	Dental and retroflex	t̪ (dental/retroflex)	බට	b a t̪ ə	0.99
+w020	බට	bamboo; pipe	Dental and retroflex	ʈ (dental/retroflex)	බත	b a ʈ ə	0.95
+w021	කට	mouth	Dental and retroflex	ʈ (dental/retroflex)		k a ʈ ə	1.00
+w022	පොත	book	Dental and retroflex	t̪ (dental/retroflex)		p o t̪ ə	0.98
+w023	තට්ටුව	storey; floor	Dental and retroflex	t̪ and ʈ		t̪ a ʈ ʈ u ʋ ə	1.27
+w024	පාට	colour	Dental and retroflex	ʈ (dental/retroflex)		p aː ʈ ə	1.15
+w025	වතුර	water	Dental and retroflex	t̪ (dental/retroflex)		ʋ a t̪ u r ə	1.14
+w026	පුටුව	chair	Dental and retroflex	ʈ (dental/retroflex)		p u ʈ u ʋ ə	1.09
+w027	බිත්තර	egg	Dental and retroflex	double t̪		b i t̪ t̪ ə r ə	1.24
+w028	දත	tooth	Dental and retroflex	d̪ (dental/retroflex)		d̪ a t̪ ə	1.12
+w029	බඩ	stomach	Dental and retroflex	ɖ (dental/retroflex)		b a ɖ ə	0.92
+w030	කඩය	shop	Dental and retroflex	ɖ (dental/retroflex)		k a ɖ ə j ə	1.09
+w031	දඩය	fine (penalty)	Dental and retroflex	d̪ and ɖ		d̪ a ɖ ə j ə	1.19
+w032	කඩදාසි	paper	Dental and retroflex	ɖ and d̪		k a ɖ ə d̪ aː s i	1.30
+w033	සුදු	white	Dental and retroflex	d̪ (dental/retroflex)		s u d̪ u	0.95
+w034	උදේ	morning	Dental and retroflex	d̪ (dental/retroflex)		u d̪ eː	1.10
+w035	ක්‍රීඩාව	sport	Clusters	ɖ, k r cluster		k r iː ɖ aː ʋ ə	1.20
+w036	අඹ	mango	Prenasalized sounds	ᵐb (prenasalized)	අබ	a ᵐb ə	1.00
+w037	අබ	mustard	Prenasalized sounds	b (plain stop)	අඹ	a b ə	1.00
+w038	හඳ	moon	Prenasalized sounds	ⁿd̪ (prenasalized)	හද	h a ⁿd̪ ə	0.91
+w039	හද	heart	Prenasalized sounds	d̪ (plain stop)	හඳ	h a d̪ ə	0.89
+w040	අඟ	horn	Prenasalized sounds	ᵑɡ (prenasalized)	අග	a ᵑɡ ə	0.83
+w041	අග	tip; end	Prenasalized sounds	ɡ (plain stop)	අඟ	a ɡ ə	0.85
+w042	අඬනවා	crying	Prenasalized sounds	ⁿɖ (prenasalized)		a ⁿɖ ə n ə ʋ aː	1.15
+w043	ගඟ	river	Prenasalized sounds	ᵑɡ (prenasalized)		ɡ a ᵑɡ ə	1.05
+w044	කඳ	trunk (of a tree)	Prenasalized sounds	ⁿd̪ (prenasalized)	කන්ද	k a ⁿd̪ ə	0.88
+w045	කන්ද	hill	Prenasalized sounds	n d̪ cluster (not prenasalized)	කඳ	k a n d̪ ə	1.05
+w046	තඹ	copper	Prenasalized sounds	ᵐb (prenasalized)		t̪ a ᵐb ə	0.95
+w047	වඳුරා	monkey	Prenasalized sounds	ⁿd̪ (prenasalized)		ʋ a ⁿd̪ u r aː	1.20
+w048	ඇඳ	bed	Prenasalized sounds	ⁿd̪ (prenasalized)		æ ⁿd̪ ə	0.98
+w049	ගස	tree	s, sh and h	s (stopping)		ɡ a s ə	1.12
+w050	සතා	animal	s, sh and h	s (stopping)		s a t̪ aː	1.12
+w051	සීනි	sugar	s, sh and h	s (stopping)		s iː n i	1.01
+w052	හිස	head	s, sh and h	h and s		h i s ə	0.94
+w053	හත	seven	s, sh and h	h (h dropped)	අත	h a t̪ ə	0.96
+w054	හාවා	rabbit	s, sh and h	h (h dropped)		h aː ʋ aː	1.00
+w055	කහ	yellow	s, sh and h	h (h dropped)		k a h ə	0.83
+w056	ශාලාව	hall	s, sh and h	ʃ (ʃ/s)		ʃ aː l aː ʋ ə	1.20
+w057	ශබ්දය	sound	s, sh and h	ʃ (ʃ/s)		ʃ a b d̪ ə j ə	1.20
+w058	පූසා	cat	s, sh and h	s (stopping)		p uː s aː	1.06
+w059	මේසය	table	s, sh and h	s (stopping)		m eː s ə j ə	1.32
+w060	සපත්තු	shoes	s, sh and h	s, double t̪		s a p a t̪ t̪ u	1.19
+w061	ෆෝනය	phone	s, sh and h	f (f/p)		f oː n ə j ə	1.06
+w062	සිංහයා	lion	s, sh and h	s, ŋ, h		s i ŋ h ə j aː	1.14
+w063	කෑම	food	k and g	k (fronting)		k æː m ə	1.05
+w064	කකුල	leg	k and g	k (fronting)		k a k u l ə	1.13
+w065	ගම	village	k and g	ɡ (fronting)		ɡ a m ə	1.08
+w066	ගෙදර	home	k and g	ɡ and d̪		ɡ e d̪ ə r ə	1.19
+w067	කෙසෙල්	banana	k and g	k and s		k e s e l	1.21
+w068	තක්කාලි	tomato	k and g	double k		t̪ a k k aː l i	1.35
+w069	අක්කා	elder sister	k and g	double k		a k k aː	1.24
+w070	ගෝවා	cabbage	k and g	ɡ (fronting)		ɡ oː ʋ aː	1.08
+w071	කොළ	leaf; green	k and g	k and l		k o l ə	1.00
+w072	රජ	king	ch, j, w and y	dʒ (affricate)		r a dʒ ə	1.02
+w073	ජලය	water (formal)	ch, j, w and y	dʒ (affricate)		dʒ a l ə j ə	1.19
+w074	ජනේලය	window	ch, j, w and y	dʒ (affricate)		dʒ a n eː l ə j ə	1.35
+w075	කෝච්චිය	train	ch, j, w and y	double tʃ		k oː tʃ tʃ i j ə	1.30
+w076	චක්‍රය	disc; wheel	Clusters	tʃ, k r cluster		tʃ a k r ə j ə	1.48
+w077	පුංචි	small	ch, j, w and y	tʃ after ŋ		p u ŋ tʃ i	1.07
+w078	වැස්ස	rain	ch, j, w and y	ʋ (ʋ/b)		ʋ æ s s ə	1.16
+w079	යතුර	key	ch, j, w and y	j (glide)		j a t̪ u r ə	1.16
+w080	අයියා	elder brother	ch, j, w and y	double j		a j i j aː	1.13
+w081	මාළුවා	fish	ch, j, w and y	l and ʋ		m aː l u ʋ aː	1.22
+w082	ළමයා	child	ch, j, w and y	l and j		l a m ə j aː	1.14
+w083	බෝලය	ball	ch, j, w and y	b (ʋ/b)		b oː l ə j ə	1.25
+w084	නම	name	Nasals	n and m		n a m ə	1.01
+w085	අම්මා	mother	Nasals	double m		a m m aː	1.01
+w086	නංගි	younger sister	Nasals	ŋ ɡ		n a ŋ ɡ i	1.22
+w087	කන	ear	Nasals	n		k a n ə	0.95
+w088	ගින්දර	fire	Nasals	n d̪ cluster		ɡ i n d̪ ə r ə	1.21
+w089	නිල්	blue	Nasals	n and l		n i l	1.08
+w090	එක	one	Vowels and length	e (vowel length)	ඒක	e k ə	0.83
+w091	ඒක	that one	Vowels and length	eː (vowel length)	එක	eː k ə	1.01
+w092	ඇස	eye	Vowels and length	æ (æ/e)		æ s ə	1.03
+w093	ඈත	far	Vowels and length	æː (vowel length)		æː t̪ ə	1.09
+w094	ඉර	sun	Vowels and length	i and r		i r ə	0.96
+w095	ඌරා	pig	Vowels and length	uː (vowel length)		uː r aː	1.01
+w096	ඔය	that; stream	Vowels and length	o (vowel length)		o j ə	1.09
+w097	ඕනෑ	want; need	Vowels and length	oː and æː		oː n æː	0.99
+w098	තේ	tea	Vowels and length	eː (vowel length)		t̪ eː	0.92
+w099	පාන්	bread	Vowels and length	aː (vowel length)		p aː n	0.94
+w100	ප්‍රශ්නය	question	Clusters	p r cluster, ʃ		p r a ʃ n ə j ə	1.24

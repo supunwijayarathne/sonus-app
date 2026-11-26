@@ -42,6 +42,10 @@ class PracticeSession {
 
   int get wordsPracticed => attempts.length;
 
+  /// Starter words the user chose themselves (not assigned by a therapist).
+  bool get isSelfPractice =>
+      attempts.isNotEmpty && attempts.every((a) => a.word.isSelfPractice);
+
   /// Number of *words* with at least one possible difference.
   int get possibleDifferences =>
       attempts.where((a) => a.result.hasDifference).length;

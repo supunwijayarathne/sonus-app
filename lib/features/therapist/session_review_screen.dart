@@ -106,7 +106,10 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
           const SizedBox(height: AppSpacing.xl),
           _InfoCard(
             user: observation.patient.profile.name,
-            session: sessionTime(observation.session.at),
+            session: [
+              sessionTime(observation.session.at),
+              if (observation.attempt.word.isSelfPractice) 'Self-practice',
+            ].join(' · '),
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
@@ -132,11 +135,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
               style: AppTypography.body,
             ),
           const SizedBox(height: AppSpacing.lg),
-          AudioRow(
-            icon: Icons.volume_up_outlined,
-            title: 'Reference audio',
-            length: attempt.referenceLength,
-          ),
+          ReferenceAudioRow(word: attempt.word.text),
           const SizedBox(height: AppSpacing.md - 4),
           // Recordings stay on the user's phone (no upload yet).
           AudioRow(

@@ -3,18 +3,42 @@ import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../services/reference_audio.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/format.dart';
 
+/// "Reference audio" for a word: the starter word's computer voice, or
+/// "Not added yet" when the word has no recording.
+class ReferenceAudioRow extends StatelessWidget {
+  const ReferenceAudioRow({super.key, required this.word});
+
+  /// Sinhala text of the exercise.
+  final String word;
+
+  @override
+  Widget build(BuildContext context) {
+    final reference = starterWords.lookup(word);
+    return AudioRow(
+      icon: Icons.volume_up_outlined,
+      title: 'Reference audio',
+      length: reference?.length ?? Duration.zero,
+      assetPath: reference?.assetPath,
+      unavailableText: 'Not added yet',
+      note: 'Computer voice',
+    );
+  }
+}
+
 /// Row with an icon, a title, a length ("0:03") and a play/pause button.
 ///
 /// - With [filePath]: plays that file on this phone (just_audio).
-/// - Without it but with [unavailableText]: the button is off and the text
-///   says why ("Kept on the user's phone").
-/// - Neither: playback is *simulated* with a timer (reference audio, which
-///   does not exist yet).
+/// - With [assetPath]: plays a recording bundled with the app (reference
+///   audio of a starter word).
+/// - Without either but with [unavailableText]: the button is off and the
+///   text says why ("Kept on the user's phone").
+/// - None of them: playback is *simulated* with a timer (mock data only).
 class AudioRow extends StatefulWidget {
   const AudioRow({
     super.key,
@@ -22,14 +46,22 @@ class AudioRow extends StatefulWidget {
     required this.title,
     required this.length,
     this.filePath,
+    this.assetPath,
     this.unavailableText,
+    this.note,
   });
 
   final IconData icon;
   final String title;
+
+  /// Shown as "0:03"; zero hides it.
   final Duration length;
   final String? filePath;
+  final String? assetPath;
   final String? unavailableText;
+
+  /// Extra words after the length ("Computer voice").
+  final String? note;
 
   @override
   State<AudioRow> createState() => _AudioRowState();
@@ -42,7 +74,9 @@ class _AudioRowState extends State<AudioRow> {
   StreamSubscription<PlayerState>? _playerState;
 
   bool get _available =>
-      widget.filePath != null || widget.unavailableText == null;
+      widget.filePath != null ||
+      widget.assetPath != null ||
+      widget.unavailableText == null;
 
   @override
   void dispose() {
@@ -54,7 +88,8 @@ class _AudioRowState extends State<AudioRow> {
 
   Future<void> _toggle() async {
     final path = widget.filePath;
-    if (path == null) return _toggleSimulated();
+    final asset = widget.assetPath;
+    if (path == null && asset == null) return _toggleSimulated();
 
     final player = _player ??= _createPlayer();
     if (_playing) {
@@ -64,7 +99,11 @@ class _AudioRowState extends State<AudioRow> {
     try {
       if (player.audioSource == null ||
           player.processingState == ProcessingState.completed) {
-        await player.setFilePath(path);
+        if (path != null) {
+          await player.setFilePath(path);
+        } else {
+          await player.setAsset(asset!);
+        }
       }
       unawaited(player.play());
     } catch (_) {
@@ -97,9 +136,11 @@ class _AudioRowState extends State<AudioRow> {
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = _available
-        ? clockDuration(widget.length)
-        : '${clockDuration(widget.length)} · ${widget.unavailableText}';
+    final subtitle = [
+      if (widget.length > Duration.zero) clockDuration(widget.length),
+      if (!_available) widget.unavailableText!,
+      if (_available && widget.note != null) widget.note!,
+    ].join(' · ');
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -132,7 +173,8 @@ class _AudioRowState extends State<AudioRow> {
                   widget.title,
                   style: AppTypography.sectionTitle.copyWith(fontSize: 16),
                 ),
-                Text(subtitle, style: AppTypography.caption),
+                    if (subtitle.isNotEmpty)
+                  Text(subtitle, style: AppTypography.caption),
               ],
             ),
           ),

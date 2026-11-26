@@ -113,11 +113,7 @@ class ResultScreen extends StatelessWidget {
           ],
           const ResultNote(),
           const SizedBox(height: AppSpacing.md),
-          AudioRow(
-            icon: Icons.volume_up_outlined,
-            title: 'Reference audio',
-            length: attempt.referenceLength,
-          ),
+          ReferenceAudioRow(word: attempt.word.text),
           const SizedBox(height: AppSpacing.md - 4),
           AudioRow(
             icon: Icons.mic_none,

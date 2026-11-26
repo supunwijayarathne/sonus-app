@@ -57,7 +57,10 @@ class SessionCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${plural(session.wordsPracticed, 'word')} practiced',
+                          [
+                            '${plural(session.wordsPracticed, 'word')} practiced',
+                            if (session.isSelfPractice) 'Self-practice',
+                          ].join(' · '),
                           style: AppTypography.small,
                         ),
                       ],

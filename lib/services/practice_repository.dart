@@ -51,9 +51,11 @@ abstract class PracticeRepository {
 
   /// Stores one attempt and its automated result. Write-once: an attempt is
   /// never changed afterwards (CLAUDE.md rule 2). The audio is not uploaded.
+  /// [therapistId] is null for a user without a therapist (self-practice);
+  /// only they can read it.
   Future<void> saveAttempt({
     required String userId,
-    required String therapistId,
+    required String? therapistId,
     required String sessionId,
     required WordAttempt attempt,
   });

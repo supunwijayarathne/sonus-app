@@ -8,6 +8,7 @@ import '../../services/practice_repository.dart';
 import '../../theme/app_colors.dart';
 import '../exercises/create_exercise_screen.dart';
 import '../exercises/exercise_library_screen.dart';
+import '../exercises/starter_words_screen.dart';
 import '../profile/profile_screen.dart';
 import 'invite_code_sheet.dart';
 import 'overview_screen.dart';
@@ -74,6 +75,18 @@ class _TherapistShellState extends State<TherapistShell> {
     );
   }
 
+  void _addStarterWords(List<Exercise> library) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StarterWordsScreen(
+          therapistId: widget.profile.id,
+          alreadyAdded: {for (final e in library) e.text},
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<PatientRecord>>(
@@ -99,6 +112,10 @@ class _TherapistShellState extends State<TherapistShell> {
             builder: (context, snapshot) => ExerciseLibraryScreen(
               exercises: snapshot.data,
               onCreate: _createExercise,
+              // Wait for the library, so words already in it aren't added twice.
+              onAddStarterWords: snapshot.data == null
+                  ? null
+                  : () => _addStarterWords(snapshot.data!),
             ),
           ),
           ReviewsScreen(

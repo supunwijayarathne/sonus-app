@@ -246,14 +246,14 @@ class FirebasePracticeRepository implements PracticeRepository {
   @override
   Future<void> saveAttempt({
     required String userId,
-    required String therapistId,
+    required String? therapistId,
     required String sessionId,
     required WordAttempt attempt,
   }) {
     return _write(
       _attempts.doc(attempt.id).set({
         'userId': userId,
-        'therapistId': therapistId,
+        'therapistId': therapistId, // null = no therapist (the rules check it)
         'exerciseId': attempt.word.exerciseId,
         'sessionId': sessionId,
         'text': attempt.word.text,
@@ -313,7 +313,7 @@ class FirebasePracticeRepository implements PracticeRepository {
       recordingLength: Duration(
         milliseconds: (data['recordingMs'] as num? ?? 0).toInt(),
       ),
-      referenceLength: const Duration(seconds: 2), // no reference audio yet
+      referenceLength: Duration.zero, // the reference row looks it up
       audioPath: RecordingFiles.existing(id), // only on the user's phone
     );
   }

@@ -66,6 +66,12 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # The 100 starter words and their computer-voice reference audio
+  # (made with ../sonus/tools/reference_audio.py).
+  assets:
+    - assets/starter_words.tsv
+    - assets/reference_audio/
+
   # Variable fonts (one file holds every weight). Licences: assets/fonts/OFL-*.txt
   fonts:
     - family: Inter

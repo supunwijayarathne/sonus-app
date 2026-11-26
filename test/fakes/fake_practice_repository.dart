@@ -124,16 +124,20 @@ class FakePracticeRepository implements PracticeRepository {
 
   var _nextId = 0;
 
+  /// The therapistId of every saved attempt (null = no therapist).
+  final savedTherapistIds = <String?>[];
+
   @override
   String newAttemptId() => 'attempt-${_nextId++}';
 
   @override
   Future<void> saveAttempt({
     required String userId,
-    required String therapistId,
+    required String? therapistId,
     required String sessionId,
     required WordAttempt attempt,
   }) async {
+    savedTherapistIds.add(therapistId);
     final sessions = allSessions[userId] ??= [];
     final i = sessions.indexWhere((s) => s.id == sessionId);
     if (i == -1) {

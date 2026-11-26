@@ -27,9 +27,10 @@ class PracticeFlow {
 
   final List<PracticeWord> words;
 
-  /// Whose session this is, and their therapist (stored on each attempt).
+  /// Whose session this is, and their therapist (stored on each attempt;
+  /// null when the user has not linked one and practises starter words).
   final String userId;
-  final String therapistId;
+  final String? therapistId;
 
   final String _sessionId;
 

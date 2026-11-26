@@ -17,11 +17,13 @@ class ExerciseLibraryScreen extends StatelessWidget {
     super.key,
     required this.exercises,
     this.onCreate,
+    this.onAddStarterWords,
   });
 
   /// Null while loading.
   final List<Exercise>? exercises;
   final VoidCallback? onCreate;
+  final VoidCallback? onAddStarterWords;
 
   Future<void> _delete(BuildContext context, Exercise exercise) async {
     final sure = await showDialog<bool>(
@@ -102,6 +104,12 @@ class ExerciseLibraryScreen extends StatelessWidget {
             title: 'New exercise',
             subtitle: 'Type a Sinhala word or phrase',
             onTap: onCreate,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DashedActionCard(
+            title: 'Starter words',
+            subtitle: 'Add words with a computer-voice reference',
+            onTap: onAddStarterWords,
           ),
           const SizedBox(height: AppSpacing.md + 4),
           if (exercises == null)

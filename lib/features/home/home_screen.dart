@@ -26,6 +26,7 @@ class HomeScreen extends StatelessWidget {
     this.onStartPractice,
     this.onPractiseWord,
     this.onLinkTherapist,
+    this.onOpenStarterWords,
     this.onViewHistory,
     this.onOpenSession,
   });
@@ -41,12 +42,20 @@ class HomeScreen extends StatelessWidget {
   final VoidCallback? onStartPractice;
   final ValueChanged<PracticeWord>? onPractiseWord;
   final VoidCallback? onLinkTherapist;
+
+  /// Opens the Practice tab (starter words), shown when nothing is assigned.
+  final VoidCallback? onOpenStarterWords;
   final VoidCallback? onViewHistory;
   final ValueChanged<PracticeSession>? onOpenSession;
 
   /// The practice card, or what to do first, then the assigned words.
   List<Widget> _practice(double scale) {
     final words = this.words;
+    final starterButton = OutlinedButton.icon(
+      onPressed: onOpenStarterWords,
+      icon: const Icon(Icons.mic_none),
+      label: const Text('Practise starter words'),
+    );
     if (!linked) {
       return [
         EmptyStateCard(
@@ -54,10 +63,13 @@ class HomeScreen extends StatelessWidget {
           title: 'Link your therapist',
           message:
               'Your therapist chooses the words you practise. Ask them for '
-              'their invite code.',
+              'their invite code. Until then, you can practise the starter '
+              'words.',
           actionLabel: 'Enter invite code',
           onAction: onLinkTherapist,
         ),
+        const SizedBox(height: AppSpacing.md),
+        starterButton,
       ];
     }
     if (words != null && words.isEmpty) {
@@ -67,8 +79,10 @@ class HomeScreen extends StatelessWidget {
           title: 'No exercises yet',
           message:
               'Your therapist hasn\'t assigned any words yet. They will '
-              'appear here.',
+              'appear here. Meanwhile, you can practise the starter words.',
         ),
+        const SizedBox(height: AppSpacing.md),
+        starterButton,
       ];
     }
     return [

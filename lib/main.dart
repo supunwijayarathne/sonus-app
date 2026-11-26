@@ -14,6 +14,7 @@ import 'services/auth_repository.dart';
 import 'services/firebase_auth_repository.dart';
 import 'services/firebase_practice_repository.dart';
 import 'services/practice_repository.dart';
+import 'services/reference_audio.dart';
 import 'services/voice_recorder.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
@@ -26,6 +27,7 @@ Future<void> main() async {
   practiceRepository = FirebasePracticeRepository();
   voiceRecorder = RecordVoiceRecorder();
   analysisService = analysisServiceFromConfig();
+  starterWords = await StarterWords.load();
   await RecordingFiles.init();
   runApp(const SonusApp());
 }

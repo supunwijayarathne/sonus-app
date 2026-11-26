@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -8,15 +10,22 @@ import 'package:sonus_app/models/user_profile.dart';
 import 'package:sonus_app/models/user_role.dart';
 import 'package:sonus_app/services/auth_repository.dart';
 import 'package:sonus_app/services/practice_repository.dart';
+import 'package:sonus_app/services/reference_audio.dart';
 import 'package:sonus_app/services/voice_recorder.dart';
 import 'package:sonus_app/theme/app_theme.dart';
 import 'package:sonus_app/utils/format.dart';
 
 import 'fakes/fake_auth_repository.dart';
 import 'fakes/fake_practice_repository.dart';
+import 'fakes/fake_reference_player.dart';
 import 'fakes/fake_voice_recorder.dart';
 
 Widget _app(Widget child) => MaterialApp(theme: AppTheme.dark(), home: child);
+
+/// The real starter word list (assets/starter_words.tsv).
+final _starterWords = StarterWords.parse(
+  File('assets/starter_words.tsv').readAsStringSync(),
+);
 
 const _sizes = {
   'phone': Size(402, 874),
@@ -68,21 +77,31 @@ void main() {
       expect(find.text('TARGET WORD'), findsOneWidget);
     });
 
-    testWidgets('Practice nav item is a quick link to practice', (
+    testWidgets('Practice tab: starter words by group, 5 at a time', (
       tester,
     ) async {
       _setSize(tester, const Size(402, 874));
+      starterWords = _starterWords;
+      referencePlayer = FakeReferencePlayer();
+      addTearDown(() => starterWords = StarterWords(const []));
       await tester.pumpWidget(_app(const UserShell()));
       await tester.pump(); // data from the fake repository
 
       await tester.tap(find.text('Practice'));
       await tester.pumpAndSettle();
-      expect(find.text('TARGET WORD'), findsOneWidget);
+      expect(find.text('Practise any time'), findsOneWidget);
+      expect(find.textContaining('marked "Self-practice"'), findsOneWidget);
 
-      // Back returns to Home, which is still the selected tab.
-      await tester.tap(find.byTooltip('Back'));
+      await tester.tap(find.text('r and l'));
       await tester.pumpAndSettle();
-      expect(find.text('Start practice'), findsOneWidget);
+      expect(find.text('1 of 5'), findsOneWidget);
+      final rl = _starterWords.groups['r and l']!.map((w) => w.text).toSet();
+      final shown = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data)
+          .where(rl.contains);
+      expect(shown, isNotEmpty); // the target word is from the group
+      expect(find.text('The reference sound is a computer voice.'), findsOne);
     });
 
     testWidgets('tapping an assigned word practises only that word', (
@@ -119,10 +138,50 @@ void main() {
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      // The Practice shortcut opens the same dialog.
+
+      // Until then: the starter words, with results kept private.
+      await tester.ensureVisible(find.text('Practise starter words'));
+      await tester.tap(find.text('Practise starter words'));
+      await tester.pumpAndSettle();
+      expect(find.text('Practise any time'), findsOneWidget);
+      expect(find.textContaining('Only you can see these results'), findsOne);
+    });
+
+    testWidgets('without a therapist, starter words are saved privately', (
+      tester,
+    ) async {
+      _setSize(tester, const Size(402, 874));
+      final repo = FakePracticeRepository();
+      practiceRepository = repo;
+      starterWords = _starterWords;
+      referencePlayer = FakeReferencePlayer();
+      addTearDown(() => starterWords = StarterWords(const []));
+      const unlinked = UserProfile(
+        id: 'new-user',
+        name: 'Kasun Jayasuriya',
+        email: 'kasun@example.com',
+        role: UserRole.user,
+      );
+      await tester.pumpWidget(_app(const UserShell(profile: unlinked)));
+      await tester.pump();
+
       await tester.tap(find.text('Practice'));
       await tester.pumpAndSettle();
-      expect(find.text('Link'), findsOneWidget);
+      await tester.ensureVisible(find.text('Nasals'));
+      await tester.tap(find.text('Nasals'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Record'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Stop recording'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1)); // mock service
+      await tester.pumpAndSettle();
+
+      expect(find.text('Your result'), findsOneWidget);
+      expect(repo.savedTherapistIds, [null]);
+      final attempt = repo.allSessions['new-user']!.single.attempts.single;
+      expect(attempt.word.exerciseId, startsWith('starter-w'));
+      expect(repo.allSessions['new-user']!.single.isSelfPractice, isTrue);
     });
 
     testWidgets('linked but nothing assigned: says so', (tester) async {
@@ -132,10 +191,8 @@ void main() {
       await tester.pump();
 
       expect(find.text('No exercises yet'), findsOneWidget);
-      await tester.tap(find.text('Practice'));
-      await tester.pump();
-      expect(find.textContaining('hasn\'t assigned'), findsWidgets);
-      expect(find.text('TARGET WORD'), findsNothing);
+      expect(find.text('Practise starter words'), findsOneWidget);
+      expect(find.text('Start practice'), findsNothing);
     });
 
     testWidgets('uses suggestion wording only', (tester) async {
@@ -159,8 +216,23 @@ void main() {
       });
     }
 
-    testWidgets('play shows "Playing reference", then returns', (tester) async {
+    testWidgets('play shows "Playing reference", pause stops it', (
+      tester,
+    ) async {
       _setSize(tester, const Size(402, 874));
+      final player = FakeReferencePlayer();
+      referencePlayer = player;
+      starterWords = StarterWords([
+        const StarterWord(
+          id: 'w001',
+          text: 'මල',
+          english: 'flower',
+          focus: 'l',
+          expected: ['m', 'a', 'l', 'ə'],
+          length: Duration(seconds: 1),
+        ),
+      ]);
+      addTearDown(() => starterWords = StarterWords(const []));
       await tester.pumpWidget(
         _app(const PracticeScreen(words: MockData.practiceWords)),
       );
@@ -169,9 +241,10 @@ void main() {
       await tester.tap(find.byTooltip('Play pronunciation'));
       await tester.pump();
       expect(find.text('Playing reference'), findsOneWidget);
-      expect(find.byTooltip('Pause'), findsOneWidget);
 
-      await tester.pump(const Duration(seconds: 2)); // simulated audio ends
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
+      expect(player.isPlaying, isFalse);
       expect(find.text('Listen to the pronunciation'), findsOneWidget);
     });
   });

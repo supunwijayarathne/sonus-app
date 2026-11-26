@@ -7,6 +7,7 @@ import '../../models/practice_word.dart';
 import '../../services/analysis_service.dart';
 import '../../services/audio_quality.dart';
 import '../../services/practice_repository.dart';
+import '../../services/reference_audio.dart';
 import '../../services/voice_recorder.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -27,8 +28,8 @@ import 'listen_rings.dart';
 /// that fails (e.g. the analysis service can't be reached) the user is told
 /// and records again.
 ///
-/// Reference playback is still *simulated* with a timer (there is no
-/// reference audio yet).
+/// The reference is the starter word's computer-voice recording; words
+/// without one say so and have no play button.
 class PracticeScreen extends StatefulWidget {
   const PracticeScreen({
     super.key,
@@ -59,15 +60,12 @@ class PracticeScreen extends StatefulWidget {
 enum _Stage { idle, recording, analysing }
 
 class _PracticeScreenState extends State<PracticeScreen> {
-  static const _referenceLength = Duration(milliseconds: 1600);
-
   /// Stop a little before the 15 s limit, so the recording always fits.
   static final _autoStop = Duration(
     milliseconds: ((AudioQuality.maxSeconds - 0.5) * 1000).round(),
   );
 
   bool _playing = false;
-  Timer? _timer;
 
   _Stage _stage = _Stage.idle;
   String? _attemptId;
@@ -79,9 +77,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   PracticeWord get _word => widget.words[widget.index];
 
+  /// The word's reference recording, or null if it has none.
+  StarterWord? get _reference => starterWords.lookup(_word.text);
+
   @override
   void dispose() {
-    _timer?.cancel();
+    if (_playing) referencePlayer.stop();
     _ticker?.cancel();
     // Leaving mid-recording: throw the recording away.
     if (_stage == _Stage.recording) voiceRecorder.cancel();
@@ -174,16 +175,21 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
   }
 
-  void _play() {
-    _timer?.cancel();
+  Future<void> _play() async {
+    final reference = _reference;
+    if (reference == null || _playing) return;
     setState(() => _playing = true);
-    _timer = Timer(_referenceLength, () {
-      if (mounted) setState(() => _playing = false);
-    });
+    try {
+      await referencePlayer.play(reference.assetPath);
+    } catch (_) {
+      // A recording that can't be played just ends; the user can try again.
+    }
+    if (mounted) setState(() => _playing = false);
   }
 
   void _pause() {
-    _timer?.cancel();
+    if (!_playing) return;
+    referencePlayer.stop();
     setState(() => _playing = false);
   }
 
@@ -191,6 +197,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   Widget build(BuildContext context) {
     final step = widget.index + 1;
     final total = widget.words.length;
+    final hasReference = _reference != null;
 
     return ResponsivePage(
       fillHeight: true,
@@ -237,11 +244,21 @@ class _PracticeScreenState extends State<PracticeScreen> {
               size: 178 * scale,
               child: CircleActionButton(
                 icon: _playing ? Icons.pause : Icons.volume_up_outlined,
-                tooltip: _playing ? 'Pause' : 'Play pronunciation',
-                color: AppColors.accent,
-                iconColor: AppColors.onAccent,
+                tooltip: !hasReference
+                    ? 'No reference sound for this word yet'
+                    : _playing
+                    ? 'Pause'
+                    : 'Play pronunciation',
+                color: hasReference ? AppColors.accent : AppColors.surface,
+                iconColor: hasReference
+                    ? AppColors.onAccent
+                    : AppColors.textTertiary,
                 size: 74 * scale,
-                onPressed: _playing ? _pause : _play,
+                onPressed: !hasReference
+                    ? null
+                    : _playing
+                    ? _pause
+                    : _play,
               ),
             ),
           ),
@@ -250,14 +267,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
           Semantics(
             liveRegion: true,
             child: Text(
-              _playing ? 'Playing reference' : 'Listen to the pronunciation',
+              !hasReference
+                  ? 'No reference sound for this word yet'
+                  : _playing
+                  ? 'Playing reference'
+                  : 'Listen to the pronunciation',
               textAlign: TextAlign.center,
               style: AppTypography.status,
             ),
           ),
           Center(
             child: TextButton.icon(
-              onPressed: _play,
+              onPressed: hasReference && !_playing ? _play : null,
               icon: const Icon(Icons.history, size: 20),
               label: const Text('Replay audio'),
               style: TextButton.styleFrom(
@@ -280,7 +301,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'The reference sound is simulated in this research prototype.',
+            hasReference
+                ? 'The reference sound is a computer voice.'
+                : 'Your therapist has not added a reference sound yet.',
             textAlign: TextAlign.center,
             style: AppTypography.caption.copyWith(fontSize: 11),
           ),

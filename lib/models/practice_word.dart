@@ -13,6 +13,12 @@ class PracticeWord {
   /// (e.g. "kamala"); '' when the therapist didn't give one.
   final String romanized;
 
-  /// The exercise this word comes from ('' for sample data).
+  /// The exercise this word comes from ('' for sample data;
+  /// "starter-w001" for a starter word the user practised on their own).
   final String exerciseId;
+
+  static const starterPrefix = 'starter-';
+
+  /// Practised on the user's own, from the starter words (not assigned).
+  bool get isSelfPractice => exerciseId.startsWith(starterPrefix);
 }
